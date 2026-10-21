@@ -205,7 +205,9 @@ class InboxPoller:
         self.db = sqlite3.connect(self.db_path)
         self.db.executescript(_SCHEMA)
         self.report = {"last_poll": None, "errors": []}
-        self.task = asyncio.create_task(self._run(inbox_for(self.google, s), s))
+        self.task = asyncio.create_task(
+            self._run(inbox_for(self.google, s), s.prefix, s.poll_minutes * 60)
+        )
 
     async def stop(self) -> None:
         if self.task is not None:
@@ -216,34 +218,34 @@ class InboxPoller:
             self.db.close()
         self.task = self.db = None
 
-    async def _run(self, inbox: InboxAdapter, s: DriveSettings) -> None:
+    async def _run(self, inbox: InboxAdapter, prefix: str, every_s: float) -> None:
         while True:
             try:
-                await self.poll(inbox, s)
+                await self.poll(inbox, prefix)
             except Exception:  # a bug must not end the loop silently
                 log.exception("inbox poll failed")
-            await asyncio.sleep(s.poll_minutes * 60)
+            await asyncio.sleep(every_s)
 
-    async def poll(self, inbox: InboxAdapter, s: DriveSettings) -> int:
-        """Ingest the new prefixed items; returns how many were stored."""
+    async def poll(self, inbox: InboxAdapter, prefix: str) -> int:
+        """Ingest the new items whose title starts with `prefix` ("": all of them); returns
+        how many were stored."""
         assert self.db is not None
         errors: list[str] = []
         stored = 0
         try:
             items = await inbox.items()
-        except GoogleError as exc:
+        except (GoogleError, OSError) as exc:  # OSError: the local folder inbox
             items, errors = [], [f"{inbox.source}: {exc}"]
         actor = Actor(f"process:{inbox.source}", Trust.EXTERNAL)
-        prefix = s.prefix.casefold()
         for item in items:
             title = item.title.strip()
-            if not title.casefold().startswith(prefix):
+            if not title.casefold().startswith(prefix.casefold()):
                 continue
             if self.db.execute(
                 "SELECT 1 FROM seen WHERE source = ? AND item_id = ?", (inbox.source, item.id)
             ).fetchone():
                 continue
-            title = " ".join(title[len(s.prefix) :].split())[:200] or "Inbox note"
+            title = " ".join(title[len(prefix) :].split())[:200] or "Inbox note"
             provenance = {
                 "source": inbox.source,
                 "item_id": item.id,
@@ -273,8 +275,8 @@ class InboxPoller:
                 stored += 1
                 try:
                     await inbox.done(item)
-                except GoogleError as exc:
-                    errors.append(f"{inbox.source}: could not delete {item.id}: {exc}")
+                except (GoogleError, OSError) as exc:
+                    errors.append(f"{inbox.source}: could not finish {item.id}: {exc}")
         for error in errors[:5]:
             log.warning("inbox: %s", error)
         self.report = {

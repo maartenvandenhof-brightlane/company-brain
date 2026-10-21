@@ -1,6 +1,6 @@
 """Process wiring: build the store, the core listeners (internal, local) and the supervisor that
-starts the mode's adapters (public MCP listener, Drive export, inbox), run them, shut down
-cleanly."""
+starts the mode's adapters (public MCP listener, Drive export, inbox, the folder mode's export
+and inbox), run them, shut down cleanly."""
 
 from __future__ import annotations
 
@@ -124,6 +124,7 @@ def uvicorn_server(app: ASGIApp, host: str, port: int, level: str) -> _Server:
 
 
 async def serve(settings: Settings) -> None:
+    from wiki_mcp.folder import FolderExporter, FolderInboxPoller
     from wiki_mcp.gdrive import DriveExporter
     from wiki_mcp.google import Google
     from wiki_mcp.inbox import InboxPoller
@@ -168,7 +169,15 @@ async def serve(settings: Settings) -> None:
 
     google = Google(secrets_dir)
     mcp = McpPublicAdapter(rt)
-    supervisor = Supervisor([mcp, DriveExporter(rt, google), InboxPoller(rt, google)])
+    supervisor = Supervisor(
+        [
+            mcp,
+            DriveExporter(rt, google),
+            InboxPoller(rt, google),
+            FolderExporter(rt),
+            FolderInboxPoller(rt),
+        ]
+    )
     rt.background.append(asyncio.create_task(mcp.follow(supervisor)))
     local_app = build_local_app(rt, supervisor, api_token=internal_token, google=google)
     servers.append(

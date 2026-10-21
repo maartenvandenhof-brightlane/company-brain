@@ -9,7 +9,8 @@ chat apps they already have (claude.ai, ChatGPT, Gemini). Forked from the owner'
   folder you can also edit in Obsidian or VS Code: search picks up your edits within seconds.
 - **Two ways in, chosen in a web wizard.** `mcp`: a custom MCP connector (OAuth 2.1) through
   Tailscale Funnel. `gdrive`: the wiki exported to Google Docs plus an inbox for notes, for chat apps
-  that block custom connectors. Or `both`.
+  that block custom connectors. Or `both`. Or `folder`: the same for Gemini, by hand, where Google
+  Cloud is switched off.
 - **A REST API and a portal** on localhost: read, search and write pages without MCP; explore the
   wiki (tree, search, graph) and review proposals.
 
@@ -39,6 +40,7 @@ Which mode:
 | `mcp` | Chat apps that allow custom MCP connectors (claude.ai, ChatGPT developer mode): they search, read and write the wiki directly | A free Tailscale account (Funnel gives the public HTTPS URL) |
 | `gdrive` | Chat apps that block custom connectors but read Google Drive (Gemini): pages as Google Docs, notes saved through an inbox | A Google account and a Google Cloud OAuth client |
 | `both` | Both of the above | Both |
+| `folder` | Gemini when the Workspace admin has Google Cloud switched off: pages as Markdown files you upload to Drive, notes you download from Drive | Nothing but a few minutes of copying files by hand |
 
 Then tell the chat app how to use the brain: copy-paste instructions for a claude.ai Project
 or a Gemini Gem, per mode, are in [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
@@ -124,6 +126,27 @@ a minute after wiki edits and every hour; `/health` and the settings page show t
 any errors. Copy-paste instructions for a Gemini Gem or a claude.ai Project are in
 [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
 
+## Mode `folder`: Google Drive by hand (no Google Cloud)
+
+For companies whose Workspace admin has Google Cloud switched off: no OAuth client, sign-in or
+tunnel. The brain keeps `data/drive/Brain/` as a Markdown copy of exactly the pages the `gdrive`
+mode exports (one `.md` file per page, in the wiki's folder layout, plus `00 Start here.md` and
+`00 Index.md`), updated at start, a minute after wiki edits and every hour. Gemini reads `.md`
+files in Drive and saves notes as plain text files in a second Drive folder. Every minute the
+brain reads the `.md` and `.txt` files in `data/drive/inbox/`, stores each once as an untrusted
+raw source in `data/wiki/raw/inbox/YYYY-MM-DD/` for review in the portal, and moves it to
+`done/` (or to `refused/` when it looks like it contains a secret). Other files stay where they
+are and are listed on the settings page.
+
+**Once:** in Google Drive, create the folders `Brain` and `Brain inbox`; share neither. Give
+Gemini the `folder` Gem from [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
+
+**Each time:**
+
+1. Out: delete the `Brain` folder in Drive and upload `data/drive/Brain` in its place.
+2. In: download the files in `Brain inbox` into `data/drive/inbox`, then delete them in Drive.
+   The notes show up among the unprocessed inbox sources in the portal.
+
 ## Mode `both`
 
 Do both setups above in one pass of the wizard: step 2 shows the Tailscale and the Google
@@ -138,6 +161,7 @@ connectors and the `gdrive` ones in the others.
 | `data/config.yaml` | The saved mode and settings |
 | `data/secrets/` | Generated tokens, the admin password hash and the Google credentials (OAuth client, refresh token, Keep service account key), each 0600. `internal_token` is the REST API's bearer token |
 | `data/state/`, `data/portal/` | Search index, OAuth state, audit logs, the Drive mapping (`gdrive.sqlite`) and the ingested inbox items (`inbox.sqlite`) |
+| `data/drive/` | The `folder` mode: `Brain/` (the Markdown export to upload to Drive) and `inbox/` (downloaded notes; imported ones move to `inbox/done/`, refused ones to `inbox/refused/`) |
 | `data/tailscale/` | The Tailscale sidecar's auth key, machine name, published DNS name and login state; the only folder it sees |
 
 Back up the whole `data/` folder; the wiki also has its full history in git.

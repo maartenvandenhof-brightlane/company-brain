@@ -71,7 +71,7 @@ async def test_tasks_are_ingested_once_as_untrusted_sources(runtime: Runtime) ->
     p = await poller(runtime, fake)
     google = p.google
     s = DriveSettings()
-    assert await p.poll(TasksInbox(google, s), s) == 2
+    assert await p.poll(TasksInbox(google, s), s.prefix) == 2
     files = inbox_files(runtime)
     today = dt.datetime.now(dt.UTC).date().isoformat()
     assert [f.relative_to(runtime.store.root).as_posix() for f in files] == [
@@ -98,10 +98,10 @@ async def test_tasks_are_ingested_once_as_untrusted_sources(runtime: Runtime) ->
     assert unprocessed["total"] == 2
 
     # Again, and after a restart: nothing new, the refused one is not retried.
-    assert await p.poll(TasksInbox(google, s), s) == 0
+    assert await p.poll(TasksInbox(google, s), s.prefix) == 0
     p.db.close()  # type: ignore[union-attr]
     again = await poller(runtime, fake)
-    assert await again.poll(TasksInbox(again.google, s), s) == 0
+    assert await again.poll(TasksInbox(again.google, s), s.prefix) == 0
     assert len(inbox_files(runtime)) == 2 and again.report["errors"] == []
     again.db.close()  # type: ignore[union-attr]
 
@@ -152,7 +152,7 @@ async def test_keep_reads_notes_with_the_service_account(runtime: Runtime) -> No
     p.google.set_keep_account(service_account())
     s = DriveSettings(inbox="keep", keep_user="amy@acme.test")
     assert s.keep_delete is False  # KEEP_DELETE_AFTER_INGEST is off by default
-    assert await p.poll(KeepInbox(p.google, s), s) == 2
+    assert await p.poll(KeepInbox(p.google, s), s.prefix) == 2
     claims = fake.token_forms[-1]
     assert claims["sub"] == "amy@acme.test" and claims["scope"] == KEEP_READONLY_SCOPE
     assert claims["iss"] == "brain@acme-project.iam.gserviceaccount.com"
@@ -167,7 +167,7 @@ async def test_keep_reads_notes_with_the_service_account(runtime: Runtime) -> No
         {"name": "notes/n4", "title": "[brain] Later", "body": {"text": {"text": "x"}}}
     )
     s = DriveSettings(inbox="keep", keep_user="amy@acme.test", keep_delete=True)
-    assert await p.poll(KeepInbox(p.google, s), s) == 1
+    assert await p.poll(KeepInbox(p.google, s), s.prefix) == 1
     assert fake.token_forms[-1]["scope"] == KEEP_SCOPE
     assert [n["name"] for n in fake.notes] == ["notes/n1", "notes/n2", "notes/n3"]
     p.db.close()  # type: ignore[union-attr]

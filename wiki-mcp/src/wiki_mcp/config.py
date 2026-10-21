@@ -328,6 +328,11 @@ class Settings(BaseSettings):
         return self.data_dir / "secrets"
 
     @property
+    def drive_dir(self) -> Path:
+        """The folder mode: Brain/ (the export to upload) and inbox/ (downloaded notes)."""
+        return self.data_dir / "drive"
+
+    @property
     def tailscale_dir(self) -> Path:
         """Shared with the Tailscale Funnel sidecar (and nothing else of the data folder)."""
         return self.data_dir / "tailscale"

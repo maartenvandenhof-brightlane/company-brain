@@ -11,8 +11,9 @@
 #
 # Data lives in a host folder (BRAIN_DATA_DIR, default ./data): wiki/ (a git repo you may edit
 # in Obsidian or VS Code; BRAIN_WIKI_DIR moves it), state/, secrets/ (0600: generated tokens, the
-# admin password hash, the Google credentials), config.yaml (the saved mode), portal/ and
-# tailscale/ (the sidecar's auth key, machine name, DNS name and login state).
+# admin password hash, the Google credentials), config.yaml (the saved mode), portal/,
+# tailscale/ (the sidecar's auth key, machine name, DNS name and login state) and drive/ (folder
+# mode: Brain/, the Markdown export to upload, and inbox/, the downloaded notes).
 
 name: company-brain
 
@@ -30,7 +31,7 @@ services:
       context: .
       dockerfile: wiki-mcp/Dockerfile
       target: runtime
-    image: company-brain/brain:${BRAIN_VERSION:-0.1.0}
+    image: company-brain/brain:${BRAIN_VERSION:-0.2.0}
     environment:
       HOST_UID: ${HOST_UID:-1000}
       HOST_GID: ${HOST_GID:-1000}
@@ -76,7 +77,7 @@ services:
       context: .
       dockerfile: portal/Dockerfile
       target: runtime
-    image: company-brain/portal:${PORTAL_VERSION:-0.1.0}
+    image: company-brain/portal:${PORTAL_VERSION:-0.2.0}
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     depends_on:
       brain: { condition: service_healthy }

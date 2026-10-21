@@ -32,6 +32,7 @@ class Mode(StrEnum):
     MCP = "mcp"
     GDRIVE = "gdrive"
     BOTH = "both"
+    FOLDER = "folder"  # standalone: never combined with the others
 
 
 MODE_HELP = {
@@ -40,6 +41,9 @@ MODE_HELP = {
     Mode.GDRIVE: "Google Drive + inbox: pages are exported as Google Docs your chat app reads, "
     "and notes you save land in the inbox. Works when custom connectors are blocked.",
     Mode.BOTH: "Both: the MCP connector and the Google Drive export with the inbox.",
+    Mode.FOLDER: "Google Drive by hand: pages are written as Markdown files to data/drive/Brain "
+    "for you to upload to Drive, and notes you download into data/drive/inbox land in the "
+    "inbox. No Google Cloud project, sign-in or tunnel.",
 }
 TUNNELS = ("tailscale",)
 _EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]+$")
@@ -80,7 +84,7 @@ class BrainConfig:
         try:
             mode = Mode(str(data.get("mode")))
         except ValueError as exc:
-            raise ValueError("mode must be mcp, gdrive or both") from exc
+            raise ValueError("mode must be mcp, gdrive, both or folder") from exc
         mcp, drive = data.get("mcp") or {}, data.get("gdrive") or {}
         if not isinstance(mcp, dict) or not isinstance(drive, dict):
             raise ValueError("mcp and gdrive must be mappings")

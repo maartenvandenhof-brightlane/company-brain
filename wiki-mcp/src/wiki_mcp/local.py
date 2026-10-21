@@ -67,6 +67,7 @@ from wiki_mcp.brain import (
     write_secret,
 )
 from wiki_mcp.config import Trust
+from wiki_mcp.folder import FolderInbox
 from wiki_mcp.gdrive import find_folder
 from wiki_mcp.google import (
     DRIVE_SCOPE,
@@ -112,6 +113,14 @@ class _Session:
     authed: bool = False
     draft: dict[str, Any] = field(default_factory=dict)  # the wizard's answers until Start
     notice: str = ""
+
+
+def writable(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    return os.access(path, os.W_OK)
 
 
 def _sentence(exc: Exception) -> str:
@@ -274,7 +283,28 @@ def build_local_app(
             out.append(await public_check())
         if config.mode in (Mode.GDRIVE, Mode.BOTH):
             out += await google_checks(config)
+        if config.mode is Mode.FOLDER:
+            out += folder_checks()
         return out
+
+    def folder_checks() -> list[tuple[bool | None, str, str]]:
+        """The two folders, named as the host sees them (data/ is the BRAIN_DATA_DIR mount)."""
+        export, inbox = settings.drive_dir / "Brain", FolderInbox(settings.drive_dir / "inbox")
+        last = supervisor.details().get("folder", {}).get("last_sync")
+        export_detail = f"last export {last} (UTC)" if last else "exported on Start"
+        inbox_detail = ""
+        if writable(inbox.path):
+            c = inbox.counts()
+            inbox_detail = f"{c['waiting']} waiting, {c['done']} imported, {c['refused']} refused"
+            if c["skipped"]:
+                inbox_detail += f"; skipped (not .md or .txt): {', '.join(c['skipped'])}"
+        return [
+            (ok, what, f"{where}: {detail if ok else 'not writable by the brain'}")
+            for ok, what, where, detail in (
+                (writable(export), "Export folder", "data/drive/Brain", export_detail),
+                (writable(inbox.path), "Inbox folder", "data/drive/inbox", inbox_detail),
+            )
+        ]
 
     async def public_check() -> tuple[bool | None, str, str]:
         """The connector's URL, fetched the way a chat app does: out to the internet and back in

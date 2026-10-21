@@ -132,7 +132,17 @@ class Doc:
     description: str = ""
 
 
-def exported_pages(store: WikiStore) -> list[Doc]:
+@dataclass(frozen=True)
+class Page:
+    path: PurePosixPath  # wiki/....md
+    type: str
+    title: str
+    description: str
+    body: str  # markdown
+
+
+def selected_pages(store: WikiStore) -> list[Page]:
+    """The pages that are exported (also by the folder mode), not yet rendered."""
     out = []
     for rel, document in store.iter_documents():
         fm = document.frontmatter or {}
@@ -151,9 +161,20 @@ def exported_pages(store: WikiStore) -> list[Doc]:
             continue
         title = " ".join(str(fm.get("title") or rel.stem).split())
         description = " ".join(str(fm.get("description") or "").split())
-        body = f"<p>{html.escape(description)}</p>\n" + to_html(document.body, rel)
-        label = type_name.replace("-", " ").capitalize()
-        out.append(Doc(str(rel.with_suffix("")), f"{label} {DASH} {title}", body, description))
+        out.append(Page(rel, type_name, title, description, document.body))
+    return out
+
+
+def label(type_name: str) -> str:
+    return type_name.replace("-", " ").capitalize()
+
+
+def exported_pages(store: WikiStore) -> list[Doc]:
+    out = []
+    for p in selected_pages(store):
+        body = f"<p>{html.escape(p.description)}</p>\n" + to_html(p.body, p.path)
+        key = str(p.path.with_suffix(""))
+        out.append(Doc(key, f"{label(p.type)} {DASH} {p.title}", body, p.description))
     return out
 
 
