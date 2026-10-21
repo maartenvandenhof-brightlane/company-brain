@@ -22,6 +22,7 @@ from portal.apps_routes import AppRoutes
 from portal.auth import AuthRoutes
 from portal.config import Settings
 from portal.docs import DocsLibrary, DocsRoutes
+from portal.drive_routes import DriveRoutes
 from portal.home import LANDING
 from portal.security import GuardMiddleware
 from portal.sessions import SessionStore
@@ -39,7 +40,7 @@ def build_app(
     wiki: WikiClient | None = None,
 ) -> Starlette:
     """The Company Brain portal: sign-in, the wiki explorer (tree, search, graph, pages),
-    proposal review, connected apps and the docs. The Second Brain's personal and model-backed
+    proposal review, connected apps, the Google Drive export and the docs. The Second Brain's personal and model-backed
     pages (home, ideas, patterns, dreams, chat import and processing, assistant, dashboard,
     usage, API keys) are not wired: their modules stay for upstream merges."""
     if audit is None:
@@ -58,6 +59,7 @@ def build_app(
     wiki_routes = WikiRoutes(portal, wiki)
     docs_routes = DocsRoutes(portal, DocsLibrary(settings.docs_dir))
     app_routes = AppRoutes(portal, wiki)
+    drive_routes = DriveRoutes(portal, wiki)
 
     async def health(_: Request) -> Response:
         return JSONResponse({"status": "ok"})
@@ -84,6 +86,7 @@ def build_app(
             *wiki_routes.routes(),
             *docs_routes.routes(),
             *app_routes.routes(),
+            *drive_routes.routes(),
             Mount("/static", app=StaticFiles(directory=STATIC_DIR), name="static"),
         ],
         exception_handlers={404: not_found, 405: not_found},

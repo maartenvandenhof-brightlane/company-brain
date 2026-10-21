@@ -42,8 +42,9 @@ MODE_HELP = {
     "and notes you save land in the inbox. Works when custom connectors are blocked.",
     Mode.BOTH: "Both: the MCP connector and the Google Drive export with the inbox.",
     Mode.FOLDER: "Google Drive by hand: pages are written as Markdown files to data/drive/Brain "
-    "for you to upload to Drive, and the Drive folder downloaded into data/drive/inbox brings "
-    "back the pages Gemini added or changed. No Google Cloud project, sign-in or tunnel.",
+    "for you to upload to Drive, and the brain-- files Gemini saved in Drive, downloaded into "
+    "data/drive/inbox, bring back the pages it added or changed. No Google Cloud project, "
+    "sign-in or tunnel.",
 }
 TUNNELS = ("tailscale",)
 _EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]+$")

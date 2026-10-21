@@ -200,7 +200,7 @@ async def test_wizard_folder_mode(
     await post(http, "/setup/mode", step1, mode="folder")
     step2 = (await http.get("/setup?step=settings")).text
     assert (
-        "a download of that folder" in step2
+        "a download of its <strong>brain--</strong> files" in step2
         and 'name="folder"' not in step2
         and 'name="authkey"' not in step2
     )

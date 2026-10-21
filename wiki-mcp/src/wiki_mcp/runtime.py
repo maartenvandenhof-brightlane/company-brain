@@ -160,6 +160,7 @@ async def serve(settings: Settings) -> None:
             allowed_hosts=settings.internal_allowed_hosts,
             portal_token=portal_token,
             oauth_db=settings.state_dir / "oauth.sqlite",
+            drive_dir=settings.drive_dir,
         )
         servers.append(
             uvicorn_server(

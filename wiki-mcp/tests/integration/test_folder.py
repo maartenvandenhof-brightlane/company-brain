@@ -4,9 +4,10 @@ downloaded back into data/drive/inbox; its adapters only run in the folder mode.
 from __future__ import annotations
 
 import asyncio
+import io
 import os
 import zipfile
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -22,6 +23,7 @@ from wiki_mcp.folder import (
     FolderExporter,
     FolderInboxPoller,
     digest,
+    latest_versions,
     parse_page,
 )
 from wiki_mcp.runtime import Runtime, create_runtime
@@ -80,9 +82,13 @@ async def test_pages_become_markdown_files(runtime: Runtime) -> None:
     for hidden in ("Zed", "Mondays", "chat 1", "Raw notes"):
         assert hidden not in everything, hidden
     start = (root / START_HERE).read_text()
-    assert "inbox" not in start and "plain text file" in start and INDEX in start
-    assert "`<name> v2.md`" in start and "highest version" in start and "Never edit" in start
-    assert "(`people`, `organizations`" in start and "`life`" not in start  # private by default
+    assert "plain text file" in start and INDEX in start
+    assert (
+        "named exactly `brain--<subfolder>--<name>.md`" in start and "never edit, rename" in start
+    )
+    assert "`brain--<subfolder>--<name> v2.md`" in start and "highest version" in start
+    assert "- `organizations`: A company, team, institution or community." in start
+    assert "- `people`: A real person" in start and "`life`" not in start  # private by default
     assert "shared memory. Answer from the wiki first" in start  # context/soul feeds it
     assert "**Amy Adams** (Person): Amy Adams is a person used in tests. `people/amy.md`" in (
         (root / INDEX).read_text()
@@ -123,7 +129,7 @@ def settled(path: Path) -> Path:
     return path
 
 
-def drop_zip(rt: Runtime, name: str, files: dict[str, str]) -> Path:
+def drop_zip(rt: Runtime, name: str, files: Mapping[str, str | bytes]) -> Path:
     """A download of the Drive folder, a minute old (settled)."""
     path = rt.settings.drive_dir / "inbox" / name
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -232,6 +238,153 @@ async def test_an_unzipped_folder_is_imported_too(runtime: Runtime) -> None:
     assert fm["type"] == "concept" and fm["description"] == "How we price."
     assert tree(inbox) == [".DS_Store", "done/Brain/concepts/pricing.md", "photo.jpg"]
     assert p.report["skipped"] == ["photo.jpg"]
+
+
+async def test_a_zip_of_brain_inbox_is_imported(runtime: Runtime) -> None:
+    store = runtime.store
+    await store.write_concept(
+        "wiki/people/amy", person("Amy Adams"), "Amy runs sales.", "test", OWNER
+    )
+    drop_zip(
+        runtime,
+        "Brain inbox-20261021.zip",
+        {
+            "Brain inbox/people/amy v2.md": "# Amy Adams\n\nWho Amy is.\n\nAmy runs ops.\n",
+            "Brain inbox/howtos/pricing-idea.md": "# Pricing idea\n\nAn idea.\n\nPer seat.\n",
+        },
+    )
+    # One folder not named like the brain: it is a subfolder, the zip's root is Brain's.
+    drop_zip(runtime, "howtos.zip", {"howtos/invoicing.md": "# Invoicing\n\nHow.\n\nMonthly.\n"})
+    p = FolderInboxPoller(runtime)
+    await p.poll()
+    assert p.report["last_import"]["created"] == ["howtos/pricing-idea.md", "howtos/invoicing.md"]
+    assert p.report["last_import"]["updated"] == ["people/amy.md"]
+    assert store.read("wiki/people/amy")[1].body.strip() == "Amy runs ops."
+    assert set(latest_versions({"BRAIN-x/a.md": ("", 0), "BRAIN-x/b/c.md": ("", 0)})) == {
+        "a.md",
+        "b/c.md",
+    }
+    assert set(latest_versions({"Brain/a.md": ("", 0), "other/b.md": ("", 0)})) == {
+        "Brain/a.md",
+        "other/b.md",
+    }
+
+
+async def test_files_named_brain_go_where_their_name_says(runtime: Runtime) -> None:
+    store = runtime.store
+    await store.write_concept(
+        "wiki/people/amy", person("Amy Adams"), "Amy runs sales.", "test", OWNER
+    )
+    page = "# {}\n\nAbout {}.\n\n{}\n"
+    drop_zip(
+        runtime,
+        "drive-download-20261021.zip",
+        {
+            "brain--howtos--pricing-idea.md": page.format("Pricing idea", "pricing", "Per seat."),
+            "brain--people--amy v2.md": page.format("Amy Adams", "Amy", "Amy runs ops."),
+            "brain--howtos--Big doc part.md.txt": page.format("Big doc", "a doc", "Part one."),
+            "brain--nowhere--x.md": page.format("X", "x", "Lost."),
+            "some/dir/Brain--Concepts--Pricing v2 (1).txt": page.format("Pricing", "it", "Seats."),
+            "notes.txt": "not a page",
+        },
+    )
+    p = FolderInboxPoller(runtime)
+    await p.poll()
+    result = p.report["last_import"]
+    assert result["created"] == [
+        "concepts/pricing.md",
+        "howtos/big-doc-part.md",
+        "howtos/pricing-idea.md",
+    ]
+    assert result["updated"] == ["people/amy.md"]
+    assert result["refused"] == ["brain--nowhere--x.md: no kind of page lives in nowhere/"]
+    assert store.read("wiki/people/amy")[1].body.strip() == "Amy runs ops."
+    fm = store.read("wiki/howtos/pricing-idea")[1].frontmatter or {}
+    assert fm["type"] == "howto" and fm["description"] == "About pricing."
+    assert store.repo.log(limit=1)[0].body.startswith(
+        "Gemini via Google Drive: brain--people--amy v2"
+    )
+    # Next to a folder layout like Brain's, both count; the root detection ignores the names.
+    assert latest_versions(
+        {"Brain inbox/people/bob.md": ("", 0), "x/brain--people--amy v3.md": ("", 0)}
+    ) == {"people/bob.md": ("people/bob.md", ""), "people/amy.md": ("brain--people--amy v3.md", "")}
+
+
+def docx(*body: str) -> bytes:
+    """A minimal Word file with these elements in its body, written like Google Docs does."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr(
+            "[Content_Types].xml",
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+        )
+        z.writestr(
+            "word/document.xml",
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            f"<w:body>{''.join(body)}</w:body></w:document>",
+        )
+    return buf.getvalue()
+
+
+def para(text: str, style: str = "", listed: bool = False) -> str:
+    ppr = f'<w:pStyle w:val="{style}"/>' if style else ""
+    ppr += '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' if listed else ""
+    runs = "<w:br/>".join(
+        f"<w:r><w:t xml:space='preserve'>{t}</w:t></w:r>" for t in text.split("\n")
+    )
+    return f"<w:p><w:pPr>{ppr}</w:pPr>{runs}</w:p>"
+
+
+def table(*rows: tuple[str, ...]) -> str:
+    cells = ("".join(f"<w:tc>{para(c)}</w:tc>" for c in row) for row in rows)
+    return "<w:tbl>" + "".join(f"<w:tr>{r}</w:tr>" for r in cells) + "</w:tbl>"
+
+
+async def test_google_docs_downloaded_as_word_files_are_read(runtime: Runtime) -> None:
+    store = runtime.store
+    await store.write_concept(
+        "wiki/people/amy", person("Amy Adams"), "Amy runs sales.", "test", OWNER
+    )
+    drop_zip(
+        runtime,
+        "drive-download.zip",
+        {
+            "brain--howtos--pricing-idea.md.docx": docx(
+                para("Pricing idea", "Title"),
+                para("How we price\u00a0seats."),
+                para("Tiers", "Heading2"),
+                para("Basic", listed=True),
+                para("1. Pro", listed=True),
+                para("x = 1", "CodeBlock"),
+                para("y = 2", "CodeBlock"),
+                table(("Tier", "Price"), ("Basic", "€5")),
+            ),
+            "brain--concepts--seats.docx": docx(
+                para("# Seats"), para("What a seat is."), para("## Notes")
+            ),
+            "brain--people--amy v2.md.docx": docx(para("# Amy Adams"), para("Amy."), para("Ops.")),
+            "brain--howtos--broken.md.docx": b"not a zip",
+            "brain--howtos--other.md": "# Other\n\nAbout other.\n\nText.\n",
+            "report.docx": docx(para("# Report")),
+        },
+    )
+    p = FolderInboxPoller(runtime)
+    await p.poll()
+    result = p.report["last_import"]
+    assert result["created"] == ["concepts/seats.md", "howtos/other.md", "howtos/pricing-idea.md"]
+    assert result["updated"] == ["people/amy.md"]
+    assert result["refused"] == ["brain--howtos--broken.md.docx: not a readable Word file"]
+    page = store.read("wiki/howtos/pricing-idea")[1]
+    assert (page.frontmatter or {})["title"] == "Pricing idea"
+    assert (page.frontmatter or {})["description"] == "How we price seats."
+    assert page.body == (
+        "## Tiers\n\n- Basic\n1. Pro\n\n```\nx = 1\ny = 2\n```\n\n"
+        "| Tier | Price |\n| --- | --- |\n| Basic | €5 |\n"
+    )
+    seats = store.read("wiki/concepts/seats")[1]
+    assert (seats.frontmatter or {})["title"] == "Seats" and seats.body == "## Notes\n"
+    assert store.read("wiki/people/amy")[1].body.strip() == "Ops."
+    assert not store.exists(PurePosixPath("wiki/report.md"))
 
 
 async def test_an_unsafe_zip_is_refused_whole(runtime: Runtime) -> None:

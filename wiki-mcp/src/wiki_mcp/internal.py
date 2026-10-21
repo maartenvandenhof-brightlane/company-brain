@@ -101,6 +101,7 @@ def build_internal_app(
     allowed_hosts: list[str],
     portal_token: str = "",
     oauth_db: Path | None = None,
+    drive_dir: Path | None = None,
 ) -> tuple[Starlette, MCPServer[Any]]:
     server: MCPServer[Any] = MCPServer("second-brain-wiki", instructions=SERVER_INSTRUCTIONS)
     register(server, deps)
@@ -141,6 +142,7 @@ def build_internal_app(
             oauth=oauth,
             internal=(client_name, PRIVATE_SCOPE in scopes),
             sessions=deps.sessions,
+            drive_dir=drive_dir,
         )
         portal = PortalTokenMiddleware(api, token=portal_token, audit=deps.audit)
         routes.insert(0, Mount("/api/portal/v1", app=portal))

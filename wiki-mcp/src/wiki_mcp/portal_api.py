@@ -80,6 +80,10 @@ volumes itself.
                                  observations, their refs, the coverage, the existing patterns
   POST /patterns/feedback {id, verdict, note}   the owner's verdict on a personal pattern
                                  (agree, dispute, correct, unsure), one commit
+  GET /drive/start               the folder mode's export (data/drive/Brain): the text of
+                                 "00 Start here.md" and "00 Index.md" {start_here, index}
+  GET /drive/brain.zip           the whole export as a zip with a top-level Brain/ folder, to
+                                 upload to Google Drive by hand. Both 404 without an export
 
 An import item is {key, title, content, part, parts, messages, last_message_at, after}; the
 last three let a later import store only the messages added since (a continuation, `after`
@@ -95,8 +99,10 @@ private; never un-marked), and `"private_sources": true` marks the filed sources
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
+from pathlib import Path
 from typing import Any
 
 from starlette.applications import Starlette
@@ -323,10 +329,12 @@ def build_portal_api(
     oauth: OAuthProvider | None = None,
     internal: tuple[str, bool] | None = None,
     sessions: DreamSessions | None = None,
+    drive_dir: Path | None = None,
 ) -> Starlette:
     """`oauth` holds the connected apps (None: no OAuth state); `internal` is the internal
     listener's client name and whether INTERNAL_SCOPES include wiki:private; `sessions` the
-    assistant dreams' sessions (None: not available)."""
+    assistant dreams' sessions (None: not available); `drive_dir` the folder mode's
+    (None: no export)."""
     index = store.index
 
     async def get_index(_: Request) -> Response:
@@ -716,6 +724,36 @@ def build_portal_api(
 
         return await _json_write(request, "portal_pattern_feedback", write)
 
+    def _brain() -> Path | None:
+        """Brain/ when the folder mode has exported it."""
+        from wiki_mcp.folder import START_HERE  # folder imports runtime, which imports this
+
+        root = drive_dir / "Brain" if drive_dir is not None else None
+        return root if root is not None and (root / START_HERE).is_file() else None
+
+    async def get_drive_start(_: Request) -> Response:
+        from wiki_mcp.folder import INDEX, START_HERE
+
+        root = _brain()
+        if root is None:
+            return _error("no Google Drive folder export", 404)
+        return _JSON(
+            {
+                "start_here": (root / START_HERE).read_text(encoding="utf-8"),
+                "index": (root / INDEX).read_text(encoding="utf-8"),
+            },
+            headers={"Cache-Control": "no-store"},
+        )
+
+    async def get_drive_zip(_: Request) -> Response:
+        from wiki_mcp.folder import export_zip
+
+        root = _brain()
+        if root is None:
+            return _error("no Google Drive folder export", 404)
+        data = await asyncio.to_thread(export_zip, root)
+        return Response(data, media_type="application/zip", headers={"Cache-Control": "no-store"})
+
     return Starlette(
         routes=[
             Route("/index", get_index),
@@ -748,6 +786,8 @@ def build_portal_api(
             Route("/observations", post_observations, methods=["POST"]),
             Route("/patterns/material", get_patterns_material),
             Route("/patterns/feedback", post_pattern_feedback, methods=["POST"]),
+            Route("/drive/start", get_drive_start),
+            Route("/drive/brain.zip", get_drive_zip),
         ]
     )
 

@@ -334,6 +334,24 @@ class WikiClient:
             "/patterns/feedback", {"id": ref, "verdict": verdict, "note": note}
         )
 
+    async def drive_start(self) -> dict[str, Any]:
+        """The folder mode's "00 Start here.md" and "00 Index.md": {start_here, index};
+        NotFound without an export."""
+        return await self._get("/drive/start")
+
+    async def drive_zip(self) -> bytes:
+        """The folder mode's export as a zip that unzips to a folder Brain; NotFound without
+        an export."""
+        try:
+            r = await self.http.get("/drive/brain.zip", timeout=120.0)
+        except httpx2.HTTPError as exc:
+            raise WikiUnavailable(f"wiki-mcp unreachable ({type(exc).__name__})") from exc
+        if r.status_code == 404:
+            raise NotFound(r.json().get("error", "not found"))
+        if r.status_code != 200:
+            raise WikiUnavailable(f"wiki-mcp answered HTTP {r.status_code}")
+        return r.content
+
     async def _write(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             return await self._post(path, payload)

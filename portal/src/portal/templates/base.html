@@ -36,7 +36,7 @@
 {% if authed %}
 {% block topbar %}
 {% set in_wiki = path.startswith("/wiki") %}
-{% set in_settings = path.startswith("/settings") or path.startswith("/dreams") or path.startswith("/dashboard") or path.startswith("/usage") or path.startswith("/keys") or path.startswith("/apps") or path.startswith("/docs") %}
+{% set in_settings = path.startswith("/settings") or path.startswith("/dreams") or path.startswith("/dashboard") or path.startswith("/usage") or path.startswith("/keys") or path.startswith("/apps") or path.startswith("/drive") or path.startswith("/docs") %}
 <header class="topbar">
   <a class="brand" href="/wiki" aria-label="{{ title }}: the wiki">
     {{ brand_mark() }}
@@ -56,6 +56,7 @@
       <div class="menu-panel">
         <nav aria-label="Settings">
           <a href="/apps"{% if path.startswith("/apps") %} aria-current="page"{% endif %}>{{ icon("lock") }}Connected apps</a>
+          <a href="/drive"{% if path.startswith("/drive") %} aria-current="page"{% endif %}>{{ icon("upload") }}Google Drive</a>
           <a href="/docs"{% if path.startswith("/docs") %} aria-current="page"{% endif %}>{{ icon("docs") }}Docs</a>
         </nav>
         <hr>

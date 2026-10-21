@@ -181,8 +181,9 @@
     {% if draft.mode == "folder" %}
     <h2>Google Drive by hand</h2>
     <p>Nothing to set. The brain writes the pages to <code>data/drive/Brain</code> and imports the pages
-      Gemini adds or changes from a download of that folder in <code>data/drive/inbox</code>. In Google
-      Drive, create the folder <strong>Brain</strong> (do not share it).</p>
+      Gemini adds or changes from a download of its <strong>brain--</strong> files (search Google Drive
+      for <code>brain--</code>, select all, Download) in <code>data/drive/inbox</code>. In Google Drive, create the folders <strong>Brain</strong> and
+      <strong>Brain inbox</strong> directly under My Drive (do not share them).</p>
     {% endif %}
     <div class="row">
       <a href="/setup?step=mode">Back</a>
@@ -231,7 +232,7 @@
     {% endif %}
     {% if config.mode.value == "folder" %}
     <tr><th scope="row">Export folder</th><td><code>data/drive/Brain</code> (upload it to Drive as <strong>Brain</strong>)</td></tr>
-    <tr><th scope="row">Inbox folder</th><td><code>data/drive/inbox</code> (download Drive's <strong>Brain</strong> into it, as a zip or a folder)</td></tr>
+    <tr><th scope="row">Inbox folder</th><td><code>data/drive/inbox</code> (search Google Drive for <code>brain--</code>, select all, Download, and drop the zip into it; then delete those files in Drive)</td></tr>
     {% endif %}
     {% for name, running in status.items() %}
     {% set info = details.get(name, {}) %}

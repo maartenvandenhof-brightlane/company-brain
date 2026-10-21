@@ -16,7 +16,7 @@ types:
   person:
     label: People
     folder: wiki/people
-    description: A real person — who they are to the owner, shared history, how the owner feels about them, what is going on in their life, role and affiliations.
+    description: A real person — role, organization, how we work with them, shared history.
   organization:
     label: Organizations
     folder: wiki/organizations

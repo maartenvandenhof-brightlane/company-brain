@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, callout %}
+{% block title %}Google Drive{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Google Drive</h1>
+  <p class="lead">The brain writes its pages as Markdown files to a folder named Brain. Gemini reads Brain in Google Drive and saves new pages and versions in Brain inbox as files named <code>brain--&lt;subfolder&gt;--&lt;name&gt;.md</code>. The Gem's instructions are in the <a href="/docs/CHAT_INSTRUCTIONS#mode-folder">chat instructions</a>.</p>
+</header>
+
+{% if error %}
+{% call callout("bad", title="No export to download") %}<p>{{ error }}</p>{% endcall %}
+{% else %}
+<section class="section" aria-labelledby="upload-title">
+  <h2 id="upload-title">Sync the folders</h2>
+  <ol>
+    <li>Once: in Google Drive, create the folders Brain and Brain inbox directly under My Drive.</li>
+    <li>In: in Google Drive, search for <code>brain--</code>, select all results and Download (Drive makes a zip). Drop the zip into <code>data/drive/inbox</code>; Word files (<code>.docx</code>) in it, for the files Gemini made as Google Docs, are fine. The brain applies it within a minute; once the setup page shows them imported, delete those files in Google Drive.</li>
+    <li>Out: download <a href="/drive/Brain.zip" download>Brain.zip</a> and unzip it: you get a folder named Brain. In Google Drive, delete the old folder Brain and upload the new one (New → Folder upload).</li>
+  </ol>
+  <p class="actions"><a class="button primary" href="/drive/Brain.zip" download>{{ icon("upload") }}Download Brain.zip</a></p>
+</section>
+
+{% for key, name, slug in [("start_here", "00 Start here.md", "start-here.md"), ("index", "00 Index.md", "index.md")] %}
+<section class="section" aria-labelledby="{{ key }}-title">
+  <h2 id="{{ key }}-title">{{ name }}</h2>
+  <p class="muted">To create it by hand in Drive: copy the text into a plain text file of that name, or <a href="/drive/{{ slug }}" download>download it</a>.</p>
+  <p><button type="button" class="button small copy" data-copy="{{ files[key] }}">{{ icon("copy") }}<span data-copy-label>Copy</span></button></p>
+  <pre class="output"><code>{{ files[key] }}</code></pre>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

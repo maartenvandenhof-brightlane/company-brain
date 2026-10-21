@@ -145,24 +145,33 @@ For companies whose Workspace admin has Google Cloud switched off: no OAuth clie
 tunnel. The brain keeps `data/drive/Brain/` as a Markdown copy of exactly the pages the `gdrive`
 mode exports (one `.md` file per page, in the wiki's folder layout, plus `00 Start here.md` and
 `00 Index.md`), updated at start, a minute after wiki edits and every hour. Gemini reads the
-`.md` files in Drive and writes pages there itself: a new page as a new file, an update as
-`<name> v2.md`, `v3`, ... next to the page with the whole new page (Gemini cannot edit files).
-Every minute the brain imports each zip or folder in `data/drive/inbox/`: of every page the
+`.md` files in the Drive folder `Brain` and saves pages in the folder `Brain inbox`, each named
+for where it goes, `brain--<subfolder>--<name>.md` (Gemini cannot reliably choose a folder, so
+the name counts, wherever the file ends up): a new page as a new file, an update as
+`brain--<subfolder>--<name> v2.md`, `v3`, ... with the whole new page (Gemini cannot edit
+files). Every minute the brain imports each zip or folder in
+`data/drive/inbox/`: of every page the
 highest version, unless it is text the brain exported itself, is written to the wiki like any
 other write (validation, secret scan, a git commit per page), but only for pages the export
 shares (not private, managed or retired ones). The download then moves to `done/` (or to
 `refused/` when it cannot be read); the settings page shows what was created, updated and
 refused.
 
-**Once:** in Google Drive, create the folder `Brain` (do not share it). Give Gemini the
-`folder` Gem from [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
+**Once:** in Google Drive, create the folders `Brain` and `Brain inbox` directly under My Drive
+(do not share them). Give Gemini the `folder` Gem from
+[docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md): it reads `Brain` and saves its
+`brain--` files in `Brain inbox`.
 
 **Each time:**
 
-1. In: download the `Brain` folder from Drive (Drive gives a `.zip`; unzipped is fine too) and
-   drop it into `data/drive/inbox`. Within a minute the brain applies the new pages and versions.
-2. Out: a minute later the brain has exported again: delete the `Brain` folder in Drive and
-   upload `data/drive/Brain` in its place.
+1. In: in Google Drive, search for `brain--`, select all results and Download (Drive makes a
+   `.zip`; unzipped is fine too), and drop it into `data/drive/inbox`. The zip may hold Word files
+   (`.docx`) for the files Gemini made as Google Docs; that is fine. Within a minute the brain
+   applies the new pages and versions (the settings page shows them imported); then delete
+   those files in Drive.
+2. Out: a minute later the brain has exported again: download the fresh `Brain` (the portal's
+   Google Drive page, or `data/drive/Brain`), delete the `Brain` folder in Drive and upload the
+   new one in its place.
 
 ## Mode `both`
 
@@ -178,7 +187,7 @@ connectors and the `gdrive` ones in the others.
 | `data/config.yaml` | The saved mode and settings |
 | `data/secrets/` | Generated tokens, the admin password hash and the Google credentials (OAuth client, refresh token, Keep service account key), each 0600. `internal_token` is the REST API's bearer token |
 | `data/state/`, `data/portal/` | Search index, OAuth state, audit logs, the Drive mapping (`gdrive.sqlite`) the ingested inbox items (`inbox.sqlite`) and what the folder mode exported (`folder.sqlite`) |
-| `data/drive/` | The `folder` mode: `Brain/` (the Markdown export to upload to Drive) and `inbox/` (Drive's `Brain` downloaded back, a zip or folder; imported ones move to `inbox/done/`, unreadable ones to `inbox/refused/`) |
+| `data/drive/` | The `folder` mode: `Brain/` (the Markdown export to upload to Drive) and `inbox/` (Gemini's `brain--` files downloaded back from Drive, a zip or folder; imported ones move to `inbox/done/`, unreadable ones to `inbox/refused/`) |
 | `data/tailscale/` | The Tailscale sidecar's auth key, machine name, published DNS name and login state; the only folder it sees |
 
 Back up the whole `data/` folder; the wiki also has its full history in git.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import io
+import zipfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -13,6 +15,7 @@ from tests.conftest import SEED_DIR, TYPES_FILE, person
 from tests.integration.helpers import mcp_client, serve_app, structured
 from wiki_mcp.auth.provider import OAuthProvider
 from wiki_mcp.config import Settings, Trust
+from wiki_mcp.folder import INDEX, START_HERE, mirror
 from wiki_mcp.internal import build_internal_app
 from wiki_mcp.runtime import Runtime, create_runtime
 from wiki_mcp.wiki.actor import Actor
@@ -130,6 +133,41 @@ async def test_disabled_without_token(runtime: Runtime) -> None:
             url + API + "/index", headers={"Authorization": f"Bearer {PORTAL_TOKEN}"}
         )
         assert r.status_code == 401
+
+
+async def test_drive_folder_export(runtime: Runtime, tmp_path: Path) -> None:
+    brain = tmp_path / "drive" / "Brain"
+    for rel, text in mirror(runtime.store).items():
+        (brain / rel).parent.mkdir(parents=True, exist_ok=True)
+        (brain / rel).write_text(text, encoding="utf-8")
+    (brain / "linked.md").symlink_to(tmp_path / "outside.md")
+    (tmp_path / "outside.md").write_text("not exported", encoding="utf-8")
+    app, _ = build_internal_app(
+        runtime.deps,
+        token=LIBRECHAT_TOKEN,
+        client_name="librechat",
+        scopes=["wiki:read"],
+        allowed_hosts=["127.0.0.1:*"],
+        portal_token=PORTAL_TOKEN,
+        drive_dir=tmp_path / "drive",
+    )
+    auth = {"Authorization": f"Bearer {PORTAL_TOKEN}"}
+    async with serve_app(app) as url, httpx2.AsyncClient(base_url=url + API, headers=auth) as http:
+        body = (await http.get("/drive/start")).json()
+        assert body["start_here"].startswith("# Company Brain: start here")
+        assert body["index"].startswith("# Index")
+        r = await http.get("/drive/brain.zip")
+        assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
+        names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+        assert f"Brain/{START_HERE}" in names and f"Brain/{INDEX}" in names
+        assert "Brain/concepts/company-brain.md" in names
+        assert "Brain/linked.md" not in names
+
+
+async def test_drive_folder_export_missing(client: httpx2.AsyncClient) -> None:
+    for path in ("/drive/start", "/drive/brain.zip"):
+        r = await client.get(path)
+        assert r.status_code == 404 and "export" in r.json()["error"]
 
 
 # ------------------------------------------------------------------ chat import
