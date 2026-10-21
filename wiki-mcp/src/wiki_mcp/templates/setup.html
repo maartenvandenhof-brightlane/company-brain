@@ -180,9 +180,9 @@
     {% endif %}
     {% if draft.mode == "folder" %}
     <h2>Google Drive by hand</h2>
-    <p>Nothing to set. The brain writes the pages to <code>data/drive/Brain</code> and reads notes from
-      <code>data/drive/inbox</code>. In Google Drive, create the folders <strong>Brain</strong> and
-      <strong>Brain inbox</strong> (share neither).</p>
+    <p>Nothing to set. The brain writes the pages to <code>data/drive/Brain</code> and imports the pages
+      Gemini adds or changes from a download of that folder in <code>data/drive/inbox</code>. In Google
+      Drive, create the folder <strong>Brain</strong> (do not share it).</p>
     {% endif %}
     <div class="row">
       <a href="/setup?step=mode">Back</a>
@@ -231,7 +231,7 @@
     {% endif %}
     {% if config.mode.value == "folder" %}
     <tr><th scope="row">Export folder</th><td><code>data/drive/Brain</code> (upload it to Drive as <strong>Brain</strong>)</td></tr>
-    <tr><th scope="row">Inbox folder</th><td><code>data/drive/inbox</code> (download the notes of Drive's <strong>Brain inbox</strong> into it)</td></tr>
+    <tr><th scope="row">Inbox folder</th><td><code>data/drive/inbox</code> (download Drive's <strong>Brain</strong> into it, as a zip or a folder)</td></tr>
     {% endif %}
     {% for name, running in status.items() %}
     {% set info = details.get(name, {}) %}
@@ -239,8 +239,10 @@
       {% if info.get("problem") %}<br><span class="warn">{{ info.problem }}</span>{% endif %}
       {% set last = info.get("last_sync") or info.get("last_poll") %}
       {% if last %}<br><span class="muted">last run {{ last }} (UTC)</span>{% endif %}
-      {% if info.get("waiting") is not none %}<br><span class="muted">{{ info.waiting }} waiting, {{ info.done }} imported, {{ info.refused }} refused</span>{% endif %}
-      {% for name in info.get("skipped") or [] %}<br><span class="warn">skipped (not .md or .txt): {{ name }}</span>{% endfor %}
+      {% if info.get("waiting") is not none %}<br><span class="muted">{{ info.waiting }} downloads waiting, {{ info.done }} imported, {{ info.refused }} unreadable</span>{% endif %}
+      {% set imp = info.get("last_import") %}
+      {% if imp %}<br><span class="muted">last import ({{ imp.imported | join(", ") }}): {{ imp.created | length }} pages created, {{ imp.updated | length }} updated, {{ imp.proposed | length }} proposed, {{ imp.skipped }} unchanged, {{ imp.refused | length }} refused</span>{% endif %}
+      {% for name in info.get("skipped") or [] %}<br><span class="warn">skipped (not a .zip or folder): {{ name }}</span>{% endfor %}
       {% for error in info.get("errors") or [] %}<br><span class="bad">{{ error }}</span>{% endfor %}
     </td></tr>
     {% endfor %}

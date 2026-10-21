@@ -53,7 +53,7 @@ Which mode:
 | `mcp` | Chat apps that allow custom MCP connectors (claude.ai, ChatGPT developer mode): they search, read and write the wiki directly | A free Tailscale account (Funnel gives the public HTTPS URL) |
 | `gdrive` | Chat apps that block custom connectors but read Google Drive (Gemini): pages as Google Docs, notes saved through an inbox | A Google account and a Google Cloud OAuth client |
 | `both` | Both of the above | Both |
-| `folder` | Gemini when the Workspace admin has Google Cloud switched off: pages as Markdown files you upload to Drive, notes you download from Drive | Nothing but a few minutes of copying files by hand |
+| `folder` | Gemini when the Workspace admin has Google Cloud switched off: pages as Markdown files you upload to Drive, Gemini's new pages and versions brought back by downloading the folder | Nothing but a few minutes of copying files by hand |
 
 Then tell the chat app how to use the brain: copy-paste instructions for a claude.ai Project
 or a Gemini Gem, per mode, are in [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
@@ -144,21 +144,25 @@ any errors. Copy-paste instructions for a Gemini Gem or a claude.ai Project are 
 For companies whose Workspace admin has Google Cloud switched off: no OAuth client, sign-in or
 tunnel. The brain keeps `data/drive/Brain/` as a Markdown copy of exactly the pages the `gdrive`
 mode exports (one `.md` file per page, in the wiki's folder layout, plus `00 Start here.md` and
-`00 Index.md`), updated at start, a minute after wiki edits and every hour. Gemini reads `.md`
-files in Drive and saves notes as plain text files in a second Drive folder. Every minute the
-brain reads the `.md` and `.txt` files in `data/drive/inbox/`, stores each once as an untrusted
-raw source in `data/wiki/raw/inbox/YYYY-MM-DD/` for review in the portal, and moves it to
-`done/` (or to `refused/` when it looks like it contains a secret). Other files stay where they
-are and are listed on the settings page.
+`00 Index.md`), updated at start, a minute after wiki edits and every hour. Gemini reads the
+`.md` files in Drive and writes pages there itself: a new page as a new file, an update as
+`<name> v2.md`, `v3`, ... next to the page with the whole new page (Gemini cannot edit files).
+Every minute the brain imports each zip or folder in `data/drive/inbox/`: of every page the
+highest version, unless it is text the brain exported itself, is written to the wiki like any
+other write (validation, secret scan, a git commit per page), but only for pages the export
+shares (not private, managed or retired ones). The download then moves to `done/` (or to
+`refused/` when it cannot be read); the settings page shows what was created, updated and
+refused.
 
-**Once:** in Google Drive, create the folders `Brain` and `Brain inbox`; share neither. Give
-Gemini the `folder` Gem from [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
+**Once:** in Google Drive, create the folder `Brain` (do not share it). Give Gemini the
+`folder` Gem from [docs/CHAT_INSTRUCTIONS.md](docs/CHAT_INSTRUCTIONS.md).
 
 **Each time:**
 
-1. Out: delete the `Brain` folder in Drive and upload `data/drive/Brain` in its place.
-2. In: download the files in `Brain inbox` into `data/drive/inbox`, then delete them in Drive.
-   The notes show up among the unprocessed inbox sources in the portal.
+1. In: download the `Brain` folder from Drive (Drive gives a `.zip`; unzipped is fine too) and
+   drop it into `data/drive/inbox`. Within a minute the brain applies the new pages and versions.
+2. Out: a minute later the brain has exported again: delete the `Brain` folder in Drive and
+   upload `data/drive/Brain` in its place.
 
 ## Mode `both`
 
@@ -173,8 +177,8 @@ connectors and the `gdrive` ones in the others.
 | `data/wiki/` | The wiki, a git repo (`BRAIN_WIKI_DIR` moves it). `context/soul.md`, `user.md`, `memory.md` are what every conversation starts with |
 | `data/config.yaml` | The saved mode and settings |
 | `data/secrets/` | Generated tokens, the admin password hash and the Google credentials (OAuth client, refresh token, Keep service account key), each 0600. `internal_token` is the REST API's bearer token |
-| `data/state/`, `data/portal/` | Search index, OAuth state, audit logs, the Drive mapping (`gdrive.sqlite`) and the ingested inbox items (`inbox.sqlite`) |
-| `data/drive/` | The `folder` mode: `Brain/` (the Markdown export to upload to Drive) and `inbox/` (downloaded notes; imported ones move to `inbox/done/`, refused ones to `inbox/refused/`) |
+| `data/state/`, `data/portal/` | Search index, OAuth state, audit logs, the Drive mapping (`gdrive.sqlite`) the ingested inbox items (`inbox.sqlite`) and what the folder mode exported (`folder.sqlite`) |
+| `data/drive/` | The `folder` mode: `Brain/` (the Markdown export to upload to Drive) and `inbox/` (Drive's `Brain` downloaded back, a zip or folder; imported ones move to `inbox/done/`, unreadable ones to `inbox/refused/`) |
 | `data/tailscale/` | The Tailscale sidecar's auth key, machine name, published DNS name and login state; the only folder it sees |
 
 Back up the whole `data/` folder; the wiki also has its full history in git.

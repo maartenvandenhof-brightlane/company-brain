@@ -199,7 +199,11 @@ async def test_wizard_folder_mode(
     assert "Google Drive by hand" in step1
     await post(http, "/setup/mode", step1, mode="folder")
     step2 = (await http.get("/setup?step=settings")).text
-    assert "Brain inbox" in step2 and 'name="folder"' not in step2 and 'name="authkey"' not in step2
+    assert (
+        "a download of that folder" in step2
+        and 'name="folder"' not in step2
+        and 'name="authkey"' not in step2
+    )
     r = await post(http, "/setup/settings", step2)
     assert r.headers["location"] == "/setup?step=check"
     drop = runtime.settings.drive_dir / "inbox" / "photo.jpg"
@@ -207,7 +211,8 @@ async def test_wizard_folder_mode(
     drop.write_bytes(b"x")
     step3 = (await http.get("/setup?step=check")).text
     assert "Export folder" in step3 and "data/drive/Brain" in step3
-    assert "data/drive/inbox: 0 waiting, 0 imported, 0 refused" in step3 and "photo.jpg" in step3
+    assert "data/drive/inbox: 0 downloads waiting, 0 imported, 0 unreadable" in step3
+    assert "skipped (not a .zip or folder): photo.jpg" in step3
     assert "Google" not in step3.split("<table>")[1] and "Public MCP URL" not in step3
     await post(http, "/setup/start", step3)
     assert load_config(runtime.settings.config_file) == BrainConfig(Mode.FOLDER)

@@ -3,7 +3,7 @@
 The core (wiki, index, REST API, setup wizard, portal API) always runs. An adapter is an
 optional way in or out of the brain that only some modes need: the public MCP listener for
 mcp/both (public.McpPublicAdapter); the Drive export (gdrive.DriveExporter) and the inbox
-(inbox.InboxPoller) for gdrive/both; the folder export and inbox (folder.FolderExporter,
+(inbox.InboxPoller) for gdrive/both; the folder export and import (folder.FolderExporter,
 folder.FolderInboxPoller) for folder. Saving new settings restarts only the adapters whose mode or
 config section changed; new credentials (Connect Google) restart the adapters that use them.
 """

@@ -147,22 +147,27 @@ def selected_pages(store: WikiStore) -> list[Page]:
     for rel, document in store.iter_documents():
         fm = document.frontmatter or {}
         type_name = str(fm.get("type") or "")
-        ctype = store.registry.get(type_name)
-        if (
-            rel.parts[0] != "wiki"
-            or ctype is None
-            or ctype.managed
-            or type_name in NEVER_EXPORTED
-            or is_private(fm)
-            or store.private_by_default(rel, type_name)
-            or fm.get("status") == "deprecated"
-            or canonical_of(fm) is not None
-        ):
+        if not is_exported(store, rel, type_name, fm):
             continue
         title = " ".join(str(fm.get("title") or rel.stem).split())
         description = " ".join(str(fm.get("description") or "").split())
         out.append(Page(rel, type_name, title, description, document.body))
     return out
+
+
+def is_exported(store: WikiStore, rel: PurePosixPath, type_name: str, fm: dict[str, Any]) -> bool:
+    """Whether a page of this type and frontmatter at `rel` is exported."""
+    ctype = store.registry.get(type_name)
+    return not (
+        rel.parts[0] != "wiki"
+        or ctype is None
+        or ctype.managed
+        or type_name in NEVER_EXPORTED
+        or is_private(fm)
+        or store.private_by_default(rel, type_name)
+        or fm.get("status") == "deprecated"
+        or canonical_of(fm) is not None
+    )
 
 
 def label(type_name: str) -> str:

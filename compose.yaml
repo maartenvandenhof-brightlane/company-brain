@@ -13,7 +13,7 @@
 # in Obsidian or VS Code; BRAIN_WIKI_DIR moves it), state/, secrets/ (0600: generated tokens, the
 # admin password hash, the Google credentials), config.yaml (the saved mode), portal/,
 # tailscale/ (the sidecar's auth key, machine name, DNS name and login state) and drive/ (folder
-# mode: Brain/, the Markdown export to upload, and inbox/, the downloaded notes).
+# mode: Brain/, the Markdown export to upload, and inbox/, Drive's Brain folder downloaded back).
 
 name: company-brain
 

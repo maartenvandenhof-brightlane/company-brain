@@ -234,7 +234,7 @@ class InboxPoller:
         stored = 0
         try:
             items = await inbox.items()
-        except (GoogleError, OSError) as exc:  # OSError: the local folder inbox
+        except (GoogleError, OSError) as exc:
             items, errors = [], [f"{inbox.source}: {exc}"]
         actor = Actor(f"process:{inbox.source}", Trust.EXTERNAL)
         for item in items:
