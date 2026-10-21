@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon %}
+{% block title %}Assistant{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Assistant</h1>
+  <p class="lead">The model of the portal's chat. LibreChat keeps its own choice per chat, batch processing of imported chats asks for a model each time you start it, and ideas and dreams use the model tiers (<code>MODEL_STRONG</code>, <code>MODEL_CHEAP</code>) within the monthly budget.</p>
+</header>
+
+<section class="panel model-choice" aria-labelledby="model-title">
+  <div class="panel-head">
+    <h2 id="model-title">Model</h2>
+    <p class="hint">Now: <code>{{ current }}</code>{% if not chosen %} (LibreChat's default preset){% endif %}</p>
+  </div>
+  <form method="post" action="/settings/assistant">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="model">Model for the chat</label>
+      <p class="hint">Every call goes through LiteLLM and shows on the <a href="/usage">Usage</a> page. A model that can't read images still works in the chat: images go to a model that can, and the reply says so.</p>
+      <select id="model" name="model">
+        <option value=""{% if not chosen %} selected{% endif %}>LibreChat's default preset ({{ default }})</option>
+        {% if presets %}<optgroup label="Second Brain presets">{% for model, label in presets %}<option value="{{ model }}"{% if model == chosen %} selected{% endif %}>{{ label }} ({{ model }})</option>{% endfor %}</optgroup>{% endif %}
+        {% if others %}<optgroup label="All models">{% for model in others %}<option value="{{ model }}"{% if model == chosen %} selected{% endif %}>{{ model }}</option>{% endfor %}</optgroup>{% endif %}
+      </select>
+    </div>
+    <button type="submit" class="button primary">Save model</button>
+  </form>
+</section>
+{% endblock %}

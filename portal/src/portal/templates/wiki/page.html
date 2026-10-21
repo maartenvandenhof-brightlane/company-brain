@@ -1,0 +1,73 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import value, icon, callout, page_item, review_button %}
+{% macro doc_type() %}{{ (doc.frontmatter or {}).get("type") or ("proposal" if doc.path.startswith("proposals/") else "") }}{% endmacro %}
+{% block title %}{{ doc.title }}{% endblock %}
+{% block body_class %} has-info{% endblock %}
+{% block main_attrs %} data-type="{{ doc_type() }}"{% endblock %}
+{% block info_toggle %}<input type="checkbox" id="drawer-info" class="drawer-toggle" aria-label="Show links and properties of this page">{% endblock %}
+{% block info_label %}<label for="drawer-info" class="toggle-info" aria-hidden="true">{{ icon("info") }}Page info</label>{% endblock %}
+{% block content %}
+{% set fm = doc.frontmatter or {} %}
+{% set t = doc_type() | string %}
+<div class="page{{ ' is-raw' if doc.path.startswith('raw/') else '' }}{{ ' transcript' if doc.path.startswith('raw/chats/') else '' }}"{% if fm.get("status") == "draft" and not doc.path.startswith("raw/") %} data-draft{% endif %}>
+  {% if t %}<a class="type-tab" data-type="{{ t }}" href="/wiki/type/{{ t | urlq }}"><span class="vh">Type: </span>{{ t }}</a>{% endif %}
+  <header class="page-head">
+    {% if crumbs %}<p class="page-crumbs">{{ crumbs | join(" / ") }}</p>{% endif %}
+    <h1 class="page-title">{{ doc.title }}</h1>
+    {% if fm.get("description") %}<p class="page-desc">{{ fm.get("description") }}</p>{% endif %}
+    <ul class="page-facts">
+      {% if fm.get("private") is sameas true or doc.get("private") %}<li><span class="pill plain" title="Only assistants granted the wiki:private scope see this page">Private</span></li>{% endif %}
+      {% if fm.get("updated") %}<li>Updated {{ (fm.get("updated") | string)[:10] }}</li>{% endif %}
+      <li><code>{{ doc.path }}</code></li>
+    </ul>
+  </header>
+  {% if doc.path.startswith("proposals/") %}
+  {% call callout("warn", icon_name="proposals") %}<p>This is a proposal waiting for review, not part of the wiki yet. Ask an assistant to review it.</p>{% endcall %}
+  {% endif %}
+  {% if canonical %}
+  {% call callout("info", "Merged duplicate", icon_name="info") %}<p>This page is the same as <a href="{{ href(canonical) }}">{{ canonical }}</a>. Existing links and assistant reads resolve there. Original content is preserved in Git history. <a href="/wiki/merged">Show merged pages</a> to review older merges.</p>{% endcall %}
+  {% endif %}
+  {% if doc.path.startswith("raw/") %}
+  {% call callout("warn", icon_name="alert") %}<p>Raw source: untrusted material as it was ingested. Assistants read it to write pages; it is never changed.</p>{% endcall %}
+  {% if "chat-import" in (fm.get("tags") or []) and not (doc.backlinks | rejectattr("type", "equalto", "source") | list) %}
+  {% call callout("info", "Not processed yet", icon_name="process") %}<p>No wiki page cites this chat yet. Ask an assistant to file it into the wiki.</p>{% endcall %}
+  {% endif %}
+  {% elif fm.get("status") == "draft" %}
+  {% call callout("info", "Draft to review", icon_name="drafts") %}<p>This page is a draft: check it against the sources it cites, then mark it reviewed. <a href="/wiki/drafts">All drafts</a></p>{{ review_button(doc.id, "/wiki/page/" ~ doc.id, csrf) }}{% endcall %}
+  {% elif "from-chat-import" in (fm.get("tags") or []) and fm.get("status", "stable") == "stable" and t not in ("inference", "briefing", "maintenance-report", "proposal", "guide") %}
+  {% call callout("info", "Not marked reviewed", icon_name="drafts") %}<p>This page was written from imported chats and is stable, but has not been marked reviewed, so dreams leave it alone.</p>{{ review_button(doc.id, "/wiki/page/" ~ doc.id, csrf) }}{% endcall %}
+  {% endif %}
+  <div class="hide-lead-title"><article class="prose">{{ body | safe }}</article></div>
+</div>
+{% endblock %}
+{% block sidebar_right %}
+<label for="drawer-info" class="scrim scrim-info" aria-hidden="true"></label>
+<aside class="side side-right" aria-label="About this page">
+  <label for="drawer-info" class="drawer-close" aria-hidden="true">{{ icon("close") }}</label>
+  <section class="panel-block" aria-labelledby="backlinks-h">
+    <h2 class="nav-heading" id="backlinks-h">Backlinks<span class="count">{{ doc.backlinks | length }}</span></h2>
+    {% if doc.backlinks %}
+    <ul class="link-list">{% for b in doc.backlinks %}{{ page_item(href(b.id), b.title or b.id, b.type, b.type or "") }}{% endfor %}</ul>
+    {% else %}<p class="none">No pages link here yet.</p>{% endif %}
+  </section>
+  <section class="panel-block" aria-labelledby="outlinks-h">
+    <h2 class="nav-heading" id="outlinks-h">Links from this page<span class="count">{{ outlinks | length }}</span></h2>
+    {% if outlinks %}
+    <ul class="link-list">
+      {% for id, h, exists, kind in outlinks %}
+      {% if exists %}{{ page_item(h, id, kind) }}
+      {% else %}<li><span class="missing" data-type="broken" title="This page does not exist (yet)"><span class="swatch" aria-hidden="true"></span><span class="link-text">{{ id }}<span class="vh"> (missing page)</span></span></span></li>{% endif %}
+      {% endfor %}
+    </ul>
+    {% else %}<p class="none">None.</p>{% endif %}
+  </section>
+  {% if meta %}
+  <section class="panel-block" aria-labelledby="props-h">
+    <h2 class="nav-heading" id="props-h">Properties</h2>
+    <dl class="meta">
+      {% for k, v in meta %}<dt>{{ k }}</dt><dd>{{ value(v) }}</dd>{% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+</aside>
+{% endblock %}

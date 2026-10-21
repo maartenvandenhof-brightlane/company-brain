@@ -1,0 +1,39 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import type_label, empty %}
+{% block title %}{{ type_label(info.type) }}{% endblock %}
+{% block main_attrs %} data-type="{{ info.type }}"{% endblock %}
+{% block content %}
+<div class="page">
+  <span class="type-tab" data-type="{{ info.type }}">{{ info.type }}</span>
+  <header class="page-head">
+    <h1 class="page-title">{{ type_label(info.type) }}</h1>
+    {% if info.description %}<p class="page-desc">{{ info.description }}</p>{% endif %}
+    <ul class="page-facts">
+      <li>{{ docs | length }} page{{ "" if docs | length == 1 else "s" }}</li>
+      {% if info.folder %}<li><code>{{ info.folder }}/</code></li>{% endif %}
+    </ul>
+  </header>
+  {% if info.type == "source" %}<p><a href="/wiki/drafts">Drafts</a>: pages still in status draft, most written from these, waiting for your review.</p>{% endif %}
+  {% if docs %}
+  <ul class="doc-list">
+    {% for d in docs %}
+    <li>
+      <a class="doc-title" href="{{ href(d.id) }}">{{ d.title or d.id }}</a>
+      {% if d.description %}<p class="doc-desc">{{ d.description }}</p>{% endif %}
+      {% if d.tags or d.updated or d.get("private") %}
+      <div class="doc-meta">
+        {% if d.get("private") %}<span class="pill plain">private</span>{% endif %}
+        {% for t in d.tags %}<span class="tag">{{ t }}</span>{% endfor %}
+        {% if d.updated %}<span>Updated {{ (d.updated | string)[:10] }}</span>{% endif %}
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% call empty("No " ~ type_label(info.type) | lower ~ " yet") %}
+  <p>Assistants add pages of this type as they learn about them.{% if info.type == "source" %} Import your past chats to add some.{% endif %}</p>
+  {% endcall %}
+  {% endif %}
+</div>
+{% endblock %}

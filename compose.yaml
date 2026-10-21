@@ -1,0 +1,140 @@
+# Company Brain stack: `docker compose up -d` (or `make up`), then open the setup wizard at
+# http://localhost:${BRAIN_PORT:-8080}/setup. Nothing has to be configured beforehand: .env is
+# optional (see .env.example) and only prefills the wizard or moves ports and folders.
+#
+#   brain      the wiki, search index, REST API, setup wizard (local listener, host 127.0.0.1
+#              only), the portal's API (internal, Docker network only) and, in mcp/both mode,
+#              the public MCP listener (container port 8080, never published on the host)
+#   portal     the wiki explorer and proposal review, on the host's 127.0.0.1 only
+#   tailscale  the Funnel sidecar: the public HTTPS URL of the MCP listener, and nothing else.
+#              It idles until the wizard has stored a Tailscale auth key (tailscale/entrypoint.sh)
+#
+# Data lives in a host folder (BRAIN_DATA_DIR, default ./data): wiki/ (a git repo you may edit
+# in Obsidian or VS Code; BRAIN_WIKI_DIR moves it), state/, secrets/ (0600: generated tokens, the
+# admin password hash, the Google credentials), config.yaml (the saved mode), portal/ and
+# tailscale/ (the sidecar's auth key, machine name, DNS name and login state).
+
+name: company-brain
+
+x-defaults: &defaults
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  brain:
+    <<: *defaults
+    build:
+      context: .
+      dockerfile: wiki-mcp/Dockerfile
+      target: runtime
+    image: company-brain/brain:${BRAIN_VERSION:-0.1.0}
+    environment:
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+      SETUP_URL: http://localhost:${BRAIN_PORT:-8080}/setup
+      WIKI_TITLE: ${WIKI_TITLE:-Company Brain}
+      BRAIN_MODE: ${BRAIN_MODE:-}
+      BRAIN_DRIVE_FOLDER: ${BRAIN_DRIVE_FOLDER:-}
+      INBOX_ADAPTER: ${INBOX_ADAPTER:-}
+      BRAIN_NOTE_PREFIX: ${BRAIN_NOTE_PREFIX:-}
+      KEEP_DELETE_AFTER_INGEST: ${KEEP_DELETE_AFTER_INGEST:-false}
+      # Only the sidecar shares the funnel network: forwarded client IPs are trusted from it.
+      TRUSTED_PROXY_IPS: 10.254.80.0/29
+      OWNER_USERNAME: ${OWNER_USERNAME:-owner}
+      PROPOSALS_FOR: ${PROPOSALS_FOR:-external}
+      INTERNAL_SCOPES: ${INTERNAL_SCOPES:-wiki:read,wiki:write}
+      CIMD_ALLOWED_HOSTS: ${CIMD_ALLOWED_HOSTS:-claude.ai,claude.com,chatgpt.com,openai.com}
+      GIT_REMOTE_URL: ${GIT_REMOTE_URL:-}
+      GIT_REMOTE_BRANCH: ${GIT_REMOTE_BRANCH:-main}
+      LINT_SCHEDULE: ${LINT_SCHEDULE:-03:30}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${BRAIN_PORT:-8080}:8090"
+    volumes:
+      - ${BRAIN_DATA_DIR:-./data}:/data
+      - ${BRAIN_WIKI_DIR:-./data/wiki}:/data/wiki
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    # entrypoint.sh: hand root-created bind folders to HOST_UID, then drop to that user
+    cap_add: [CHOWN, SETUID, SETGID]
+    networks: [app, funnel]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  portal:
+    <<: *defaults
+    build:
+      context: .
+      dockerfile: portal/Dockerfile
+      target: runtime
+    image: company-brain/portal:${PORTAL_VERSION:-0.1.0}
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    depends_on:
+      brain: { condition: service_healthy }
+    environment:
+      # Local only: the portal's own URL, which its CSRF origin checks compare against.
+      PORTAL_PUBLIC_URL: http://localhost:${PORTAL_PORT:-3090}
+      WIKI_API_URL: http://brain:8081/api/portal/v1
+      WIKI_TITLE: ${WIKI_TITLE:-Company Brain}
+      OWNER_USERNAME: ${OWNER_USERNAME:-owner}
+      PORTAL_SESSION_IDLE_S: ${PORTAL_SESSION_IDLE_S:-1800}
+      PORTAL_SESSION_MAX_S: ${PORTAL_SESSION_MAX_S:-43200}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-3090}:3090"
+    volumes:
+      # The admin password hash and the portal API token, written by the brain. Never the wiki.
+      - ${BRAIN_DATA_DIR:-./data}/secrets:/data/secrets:ro
+      - ${BRAIN_DATA_DIR:-./data}/portal:/data/state
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    networks: [app]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  tailscale:
+    <<: *defaults
+    image: tailscale/tailscale:v1.102.5
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    depends_on:
+      brain: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "/sidecar/entrypoint.sh"]
+    environment:
+      TS_AUTHKEY: file:/brain/authkey
+      TS_AUTH_ONCE: "true"  # the key is needed for the first login only
+      TS_STATE_DIR: /brain/state
+      TS_SERVE_CONFIG: /sidecar/serve.json  # HTTPS :443 → brain:8080, with Funnel on
+      TS_USERSPACE: "true"  # no tun device, no capabilities
+    volumes:
+      # Its own folder only: never secrets/, the wiki or the portal.
+      - ${BRAIN_DATA_DIR:-./data}/tailscale:/brain
+      - ./tailscale:/sidecar:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    networks: [funnel]
+
+networks:
+  app: {}
+  # The brain's public listener and the sidecar. A fixed subnet so the brain can trust the
+  # sidecar's X-Forwarded-For (TRUSTED_PROXY_IPS); outside Docker's default address pools.
+  funnel:
+    ipam:
+      config:
+        - subnet: 10.254.80.0/29

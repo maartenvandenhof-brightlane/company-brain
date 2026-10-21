@@ -1,0 +1,246 @@
+{#- The setup wizard and settings page (local.py). view: password | login | wizard | settings | google -#}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Setup – {{ title }}</title>
+<style>
+  :root { --fg: #1d2326; --muted: #5b6669; --line: #c9d1d3; --bg: #f6f8f8; --card: #fff; --accent: #1f6f78; --bad: #a32626; --warn: #8a5a00; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e4eaeb; --muted: #9aa7aa; --line: #3a4548; --bg: #151b1d; --card: #1d2528; --accent: #6cc3cc; --bad: #f08a8a; --warn: #e8b960; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+  main { max-width: 40rem; margin: 2rem auto; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1.25rem 1.5rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  .muted { color: var(--muted); }
+  ol.steps { display: flex; gap: 1rem; padding: 0; list-style: none; margin: 0 0 1rem; color: var(--muted); }
+  ol.steps [aria-current] { color: var(--fg); font-weight: 600; }
+  label { display: block; margin: .75rem 0 .25rem; font-weight: 600; }
+  input[type=text], input[type=password], input[type=number], input[type=email], select { width: 100%; padding: .5rem; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+  fieldset { border: 0; padding: 0; margin: 0; }
+  .choice { display: flex; gap: .6rem; padding: .75rem; border: 1px solid var(--line); border-radius: 6px; margin: .5rem 0; font-weight: normal; }
+  .choice strong { display: block; }
+  button { margin-top: 1rem; padding: .55rem 1.1rem; font: inherit; border: 0; border-radius: 6px; background: var(--accent); color: var(--card); cursor: pointer; }
+  button.link { background: none; color: var(--accent); padding: 0; margin: 0; text-decoration: underline; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .error { color: var(--bad); font-weight: 600; }
+  .notice { border-left: 4px solid var(--accent); padding: .25rem .75rem; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .35rem .5rem .35rem 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+  .ok { color: var(--accent); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .offscreen { position: absolute; left: -9999px; }
+  details { margin: .75rem 0; } details ol { padding-left: 1.25rem; }
+  code { overflow-wrap: anywhere; } pre { overflow-x: auto; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main>
+<div class="card">
+{% if view == "password" %}
+  <h1>Welcome to {{ title }}</h1>
+  <p class="muted">First, choose the admin password. It protects this page and is also the owner login
+    for the MCP connector and the portal (user name <strong>owner</strong>).</p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/setup/password">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="password">Admin password (at least 12 characters)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" required autofocus>
+    <label for="confirm">Repeat the password</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="12" required>
+    <button type="submit">Set password</button>
+  </form>
+
+{% elif view == "login" %}
+  <h1>{{ title }} settings</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/setup/login">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="password">Admin password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit">Sign in</button>
+  </form>
+
+{% elif view == "wizard" %}
+  <div class="row">
+    <h1>{{ "Change settings" if saved else "Set up " ~ title }}</h1>
+    {% if saved %}<a href="/setup">Cancel</a>{% endif %}
+  </div>
+  <ol class="steps">
+    {% for name, label in [("mode", "1. Connectivity"), ("settings", "2. Settings"), ("check", "3. Check & start")] %}
+    <li{% if step == name %} aria-current="step"{% endif %}>{{ label }}</li>
+    {% endfor %}
+  </ol>
+  {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+  {% if step == "mode" %}
+  <form method="post" action="/setup/mode">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <fieldset>
+      <legend>How will your chat app reach the brain?</legend>
+      {% for mode, text in modes.items() %}
+      <label class="choice"><input type="radio" name="mode" value="{{ mode.value }}"{% if draft.mode == mode.value %} checked{% endif %} required>
+        <span><strong>{{ {"mcp": "MCP connector", "gdrive": "Google Drive + inbox", "both": "Both"}[mode.value] }}</strong>{{ text }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <button type="submit">Next</button>
+  </form>
+
+  {% elif step == "settings" %}
+  <form method="post" action="/setup/settings" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {# Enter in a field means Next, not Connect Google: the first submit button is the default. #}
+    <button type="submit" name="action" value="next" class="offscreen" tabindex="-1" aria-hidden="true">Next</button>
+    {% if draft.mode in ("mcp", "both") %}
+    <h2>MCP connector</h2>
+    <label for="tunnel">Tunnel</label>
+    <select id="tunnel" name="tunnel">
+      <option value="tailscale" selected>Tailscale Funnel</option>
+    </select>
+    <details>
+      <summary>How to get a Tailscale auth key (once, about 5 minutes)</summary>
+      <ol>
+        <li>Sign in to the <a href="https://login.tailscale.com/admin" rel="noreferrer">Tailscale admin console</a> (a free account is enough).</li>
+        <li>Under DNS, enable <strong>MagicDNS</strong> and <strong>HTTPS Certificates</strong>.</li>
+        <li>Under Access controls, allow Funnel for the brain: add this to the tailnet policy file (merge it into an existing <code>nodeAttrs</code>):
+          <pre><code>"nodeAttrs": [
+  { "target": ["autogroup:member"], "attr": ["funnel"] }
+]</code></pre></li>
+        <li>Under Settings → Keys, <strong>Generate auth key</strong> with <strong>Reusable off</strong> and <strong>Ephemeral off</strong>, and paste it below.
+          It is used once: the sidecar then stays logged in.</li>
+      </ol>
+    </details>
+    <label for="authkey">Tailscale auth key</label>
+    <input id="authkey" name="authkey" type="password" maxlength="210" autocomplete="off" placeholder="{{ 'saved – leave empty to keep it' if authkey_set else 'tskey-auth-…' }}">
+    <label for="hostname">Machine name <span class="muted">(the connector URL becomes https://<em>name</em>.<em>your-tailnet</em>.ts.net/mcp)</span></label>
+    <input id="hostname" name="hostname" type="text" maxlength="63" required pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" value="{{ draft.mcp.hostname }}">
+    {% endif %}
+    {% if draft.mode in ("gdrive", "both") %}
+    <h2>Google Drive + inbox</h2>
+    <label for="folder">Drive folder name</label>
+    <input id="folder" name="folder" type="text" maxlength="100" required value="{{ draft.gdrive.folder }}">
+    <label for="inbox">Inbox</label>
+    <select id="inbox" name="inbox">
+      {% for inbox in inboxes %}
+      <option value="{{ inbox }}"{% if draft.gdrive.inbox == inbox %} selected{% endif %}>{{ {"tasks": "Google Tasks (any Google account)", "keep": "Google Keep (needs a Workspace admin)"}[inbox] }}</option>
+      {% endfor %}
+    </select>
+    <label for="prefix">Note prefix <span class="muted">(titles starting with it are saved to the brain)</span></label>
+    <input id="prefix" name="prefix" type="text" maxlength="30" required value="{{ draft.gdrive.prefix }}">
+    <label for="poll_minutes">Check the inbox every … minutes</label>
+    <input id="poll_minutes" name="poll_minutes" type="number" min="1" max="1440" required value="{{ draft.gdrive.poll_minutes }}">
+    <label for="tasklist">Google Tasks list <span class="muted">(@default is the list Gemini adds tasks to; or a list's name)</span></label>
+    <input id="tasklist" name="tasklist" type="text" maxlength="100" required value="{{ draft.gdrive.tasklist }}">
+
+    <h3>Google account</h3>
+    <details>
+      <summary>How to get an OAuth client (once per company, about 5 minutes)</summary>
+      <ol>
+        <li>In the <a href="https://console.cloud.google.com/projectcreate" rel="noreferrer">Google Cloud console</a>, create a project with your company's Google account.</li>
+        <li>Under APIs &amp; Services → Library, enable the <strong>Google Drive API</strong> and the <strong>Google Tasks API</strong>.</li>
+        <li>Under OAuth consent screen, choose user type <strong>Internal</strong> (only your company's accounts; Google then never has to verify the app).</li>
+        <li>Under Credentials → Create credentials → OAuth client ID, choose type <strong>Web application</strong> and add this authorized redirect URI exactly:<br><code>{{ redirect_uri }}</code></li>
+        <li>Paste the client id and secret below, or upload the JSON file Google offers.</li>
+      </ol>
+    </details>
+    <label for="client_id">OAuth client id</label>
+    <input id="client_id" name="client_id" type="text" maxlength="200" autocomplete="off" value="{{ client_id }}" placeholder="….apps.googleusercontent.com">
+    <label for="client_secret">OAuth client secret</label>
+    <input id="client_secret" name="client_secret" type="password" maxlength="200" autocomplete="off" placeholder="{{ 'saved – leave empty to keep it' if client_id else 'GOCSPX-…' }}">
+    <label for="client_json">… or the client's JSON file</label>
+    <input id="client_json" name="client_json" type="file" accept=".json,application/json">
+    {% if account %}
+    <p>Connected as <strong>{{ account.email or "your Google account" }}</strong>.
+      <button type="submit" name="action" value="connect" class="link">Connect again</button> ·
+      <button type="submit" name="action" value="disconnect" class="link">Disconnect</button></p>
+    {% else %}
+    <p><button type="submit" name="action" value="connect">Connect Google</button>
+      <span class="muted">opens Google's sign-in, then comes back here</span></p>
+    {% endif %}
+
+    <h3>Google Keep <span class="muted">(only with the Keep inbox)</span></h3>
+    <p class="muted">Keep works only with Google Workspace accounts, not with consumer Gmail, and a Workspace
+      admin must approve it: create a service account in the same project, enable the Google Keep API,
+      download its JSON key, and have the admin grant it domain-wide delegation for the scope
+      <code>https://www.googleapis.com/auth/keep.readonly</code> (or <code>…/auth/keep</code> to delete notes after saving).</p>
+    <label for="keep_key">Service account JSON key {% if keep_email %}<span class="muted">(saved: {{ keep_email }}; upload to replace)</span>{% endif %}</label>
+    <input id="keep_key" name="keep_key" type="file" accept=".json,application/json">
+    <label for="keep_user">Workspace user whose notes are read</label>
+    <input id="keep_user" name="keep_user" type="email" maxlength="254" value="{{ draft.gdrive.keep_user }}" placeholder="you@company.com">
+    <label class="choice"><input type="checkbox" name="keep_delete"{% if draft.gdrive.keep_delete %} checked{% endif %}>
+      <span>Delete a Keep note once it is saved to the brain (off: notes stay in Keep)</span></label>
+    {% endif %}
+    <div class="row">
+      <a href="/setup?step=mode">Back</a>
+      <button type="submit">Next</button>
+    </div>
+  </form>
+
+  {% elif step == "check" %}
+  <p>Mode: <strong>{{ draft.mode }}</strong></p>
+  <table>
+    <tbody>
+    {% for ok, what, detail in checks %}
+    <tr><th scope="row">{{ what }}</th>
+      <td class="{{ 'ok' if ok else ('warn' if ok is none else 'bad') }}">{{ "OK" if ok else ("Later" if ok is none else "Not yet") }}</td>
+      <td>{{ detail }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="/setup/start">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <a href="/setup?step=settings">Back</a>
+      <button type="submit">Start</button>
+    </div>
+  </form>
+  {% endif %}
+
+{% elif view == "settings" %}
+  <div class="row">
+    <h1>{{ title }} settings</h1>
+    <form method="post" action="/setup/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link" type="submit">Sign out</button></form>
+  </div>
+  {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+  <p>{{ help[config.mode] }}</p>
+  <table>
+    <tbody>
+    <tr><th scope="row">Mode</th><td>{{ config.mode.value }}</td></tr>
+    {% if config.mode.value in ("mcp", "both") %}
+    <tr><th scope="row">Tunnel</th><td>{{ config.mcp.tunnel }} ({{ config.mcp.hostname }})</td></tr>
+    <tr><th scope="row">Connector URL</th><td>{% if public %}<code>{{ public }}/mcp</code>{% else %}<span class="warn">waiting for the Tailscale sidecar to log in</span>{% endif %}</td></tr>
+    {% endif %}
+    {% if config.mode.value in ("gdrive", "both") %}
+    <tr><th scope="row">Drive folder</th><td>{{ config.gdrive.folder }}</td></tr>
+    <tr><th scope="row">Inbox</th><td>{{ config.gdrive.inbox }} (prefix {{ config.gdrive.prefix }}, every {{ config.gdrive.poll_minutes }} min)</td></tr>
+    <tr><th scope="row">Google account</th><td>{{ account.email or "connected" if account else "not connected" }}</td></tr>
+    {% endif %}
+    {% for name, running in status.items() %}
+    {% set info = details.get(name, {}) %}
+    <tr><th scope="row">Adapter {{ name }}</th><td>{{ "running" if running else "off" }}
+      {% if info.get("problem") %}<br><span class="warn">{{ info.problem }}</span>{% endif %}
+      {% set last = info.get("last_sync") or info.get("last_poll") %}
+      {% if last %}<br><span class="muted">last run {{ last }} (UTC)</span>{% endif %}
+      {% for error in info.get("errors") or [] %}<br><span class="bad">{{ error }}</span>{% endfor %}
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p><a href="/setup?step=mode">Change settings</a></p>
+  <p class="muted">REST API: <code>GET /pages/{id}</code>, <code>GET /search?q=</code>, <code>PUT /pages/{id}</code>,
+    <code>POST /ingest</code> on this address, signed in here or with the token in <code>data/secrets/internal_token</code>.</p>
+{% elif view == "google" %}
+  <h1>{{ "Google connected" if ok else "Google not connected" }}</h1>
+  <p class="{{ 'notice' if ok else 'error' }}" role="{{ 'status' if ok else 'alert' }}">{{ message }}</p>
+  <p><a href="/setup?step=settings">Back to the settings</a></p>
+{% endif %}
+</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, callout, empty, stepper %}
+{% from "idea_card.html" import idea_card with context %}
+{% block title %}Ideas{% endblock %}
+{# While ideating, the page reloads itself without JS; with JS, ideas.js follows the run. #}
+{% block head %}{% if progress and not progress.finished %}<noscript><meta http-equiv="refresh" content="3"></noscript>{% endif %}{% endblock %}
+{% block body_class %} page-home page-ideas{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Ideas</h1>
+  <p class="lead">Suggestions drawn from your wiki, for your goals and open loops. They stay in the portal and never go into the wiki; only your goals and what you state about yourself below are written to your profile. Ideas follow every <a href="/dreams">dream</a>.</p>
+</header>
+
+{% if problems %}
+{% call callout("warn", "The wiki is not answering", "alert") %}
+<p>Could not load {{ problems | join(", ") }}.</p>
+{% endcall %}
+{% endif %}
+
+<div class="home-grid">
+  <section class="ideas" id="ideas" aria-labelledby="ideas-title">
+    <div class="section-head">
+      <h2 id="ideas-title">Open ideas</h2>
+      {% if can_look %}
+      <form method="post" action="/ideas/run" class="ideate-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="scope" value="wiki">
+        <input type="hidden" name="back" value="/ideas">
+        <button type="submit" class="button small"{% if progress and not progress.finished %} disabled aria-disabled="true"{% endif %}>{{ icon("refresh") }}Ideate</button>
+      </form>
+      {% endif %}
+    </div>
+    <p class="hint ideas-when">
+      {% if counts.snoozed %}{{ counts.snoozed }} snoozed {{ "idea comes" if counts.snoozed == 1 else "ideas come" }} back later. {% endif %}
+      Answers teach the <a href="#taste">taste note</a>.
+    </p>
+
+    {% if progress %}
+    {% set running = not progress.finished %}
+    <div class="ideate{{ ' failed' if progress.error else '' }}" id="ideas-progress" data-status="/ideas/status"{% if running %} data-running{% endif %}>
+      {{ stepper(steps, progress.step, "Ideating", failed=progress.error != "", finished=progress.finished) }}
+      {% if running %}
+      {% if progress.step == 1 and progress.total %}<progress max="{{ progress.total }}" value="{{ progress.done }}" aria-describedby="ideate-text"></progress>
+      {% else %}<progress aria-describedby="ideate-text"></progress>{% endif %}
+      {% endif %}
+      <p class="progress-text" role="status"><span id="ideate-text" data-progress-text>{{ progress.text }}</span><span data-progress-time>{{ progress.seconds }} s</span></p>
+    </div>
+    {% endif %}
+
+    <details class="explain">
+      <summary>How ideas work</summary>
+      <div class="explain-body">
+        <p>The assistant reads your wiki, your goals, your open loops, the hot-memory briefing and what the last dream changed, and suggests things worth your attention, each citing the pages it rests on. Four kinds:</p>
+        <dl class="kinds">
+          <div data-kind="follow-up"><dt>Follow-up</dt><dd>a decision or plan with no sign it happened.</dd></div>
+          <div data-kind="continue"><dt>Open question</dt><dd>something you left open, with a next step.</dd></div>
+          <div data-kind="connect"><dt>Connection</dt><dd>pages that share a person, problem or assumption.</dd></div>
+          <div data-kind="challenge"><dt>Challenge</dt><dd>an assumption of yours, with the strongest counterargument.</dd></div>
+        </dl>
+        <ul>
+          <li><strong>When.</strong> After every dream; each night at {{ ideas_at }} UTC when no dream ran that day; after you process imported chats. <strong>Ideate</strong> reads the whole wiki now.</li>
+          <li><strong>Checks.</strong> The strong model proposes candidates; each must serve a goal or loop (a challenge may not), cite pages the wiki has, and not rest on inferences alone. The cheap model scores them; only the best few, unlike anything of the last 180 days, are kept.</li>
+          <li><strong>Your answers.</strong> <em>Useful</em> ideas are examples to follow; <em>Not useful</em>, <em>Dismiss</em> and <em>Already doing</em> say what not to suggest. <em>Snooze</em> brings an idea back after 7 or 30 days.</li>
+          <li><strong>Cost.</strong> Two model calls per run, within the monthly budget for automated calls. They show on the <a href="/usage">Usage</a> page.</li>
+        </ul>
+        <p><a href="/docs/ideas">Read how ideas work in full</a></p>
+      </div>
+    </details>
+
+    {% if cards %}
+    <div class="idea-list">
+      {% for c in cards %}{{ idea_card(c, "/ideas") }}{% endfor %}
+    </div>
+    {% else %}
+    {% call empty("No ideas right now") %}
+    <p>Ideas come from what you file in the wiki: open questions, links between pages, and assumptions worth a second look.{% if can_look %} <strong>Ideate</strong> looks through the wiki now.{% endif %}</p>
+    {% endcall %}
+    {% endif %}
+  </section>
+
+  <aside class="home-side" aria-label="Goals, taste and runs">
+    <section id="goals" aria-labelledby="goals-title">
+      <h2 id="goals-title" class="side-title">Your goals</h2>
+      {% if goals is none %}
+      <p class="none">Not available right now.</p>
+      {% else %}
+      {% if goals %}
+      <ul class="goal-list">
+        {% for g in goals %}
+        <li>
+          <span>{{ g.text }}</span>
+          <form method="post" action="/ideas/goals">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="back" value="/ideas">
+            <input type="hidden" name="drop" value="{{ g.line }}">
+            <button type="submit" class="button small quiet" aria-label="Drop the goal: {{ g.text }}">Drop</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="none">No goals yet. Ideas that serve none are rarely shown.</p>
+      {% endif %}
+      <form method="post" action="/ideas/goals" class="side-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="back" value="/ideas">
+        <label for="goal-add">Add a goal</label>
+        <input id="goal-add" name="add" type="text" minlength="3" maxlength="300" required>
+        <button type="submit" class="button small">Add</button>
+      </form>
+      <p class="hint">Goals live under Goals on your <a href="/wiki/page/wiki/owner/profile">profile</a>. A dropped goal is marked superseded, not deleted.</p>
+      {% endif %}
+    </section>
+
+    <section id="about" aria-labelledby="about-title">
+      <h2 id="about-title" class="side-title">About me</h2>
+      <form method="post" action="/ideas/about" class="side-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="back" value="/ideas">
+        <label for="about-text">Something about yourself</label>
+        <textarea id="about-text" name="text" rows="3" minlength="3" maxlength="1000" required></textarea>
+        <label for="about-section">Section</label>
+        <select id="about-section" name="section">
+          {% for s in sections %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="button small">Add to my profile</button>
+      </form>
+    </section>
+
+    <section id="taste" aria-labelledby="taste-title">
+      <h2 id="taste-title" class="side-title">Taste note</h2>
+      <p class="hint">What your answers show you value. Rewritten after every 10 answers{% if taste.updated %}; last written {{ taste.updated[:10] }}, {{ taste.reactions }} {{ "answer" if taste.reactions == 1 else "answers" }} since{% endif %}.</p>
+      <form method="post" action="/ideas/taste" class="side-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="back" value="/ideas">
+        <label for="taste-note" class="vh">Taste note</label>
+        <textarea id="taste-note" name="note" rows="5" maxlength="{{ note_chars }}">{{ taste.note }}</textarea>
+        <button type="submit" class="button small">Save note</button>
+      </form>
+    </section>
+
+    <section id="runs" aria-labelledby="runs-title">
+      <h2 id="runs-title" class="side-title">Past runs</h2>
+      {% if runs %}
+      <ol class="run-list">
+        {% for r, at in runs %}
+        <li>
+          <strong>{{ at }}</strong> · {{ "whole wiki" if r.scope == "wiki" else "recent" }}{% if r.model %} · <code>{{ r.model }}</code>{% endif %}
+          <small>{% if r.error %}{{ r.error }}{% elif not r.finished %}running{% else %}{{ r.pages }} pages read, {{ r.proposed }} proposed, {{ r.kept }} kept{% endif %}</small>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="none">No runs yet.</p>
+      {% endif %}
+      <p class="more"><a href="/dreams">Dreams</a></p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

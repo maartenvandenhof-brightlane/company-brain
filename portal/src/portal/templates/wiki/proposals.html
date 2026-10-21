@@ -1,0 +1,50 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import empty %}
+{% macro decide(p, decision, label, kind, csrf) %}
+<form class="review-form" method="post" action="/wiki/proposals/decide">
+  <input type="hidden" name="review_token" value="{{ p.review_token or '' }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ p.proposal_id }}"><input type="hidden" name="decision" value="{{ decision }}">
+  <button type="submit" class="button small{{ ' ' ~ kind if kind else '' }}">{{ label }}</button>
+</form>
+{% endmacro %}
+{% block title %}Proposals{% endblock %}
+{% block main_attrs %} data-type="proposal"{% endblock %}
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <h1 class="page-title">Pending proposals</h1>
+    <p class="page-desc">Changes derived from lower-trust material wait here. So do the changes <a href="/dreams">dreams</a> propose (marked with their dream; a speculative one rests on a conclusion that goes beyond what your notes state). Review them in LibreChat or your AI app (<em>“review the wiki proposals”</em>). Identity merges, two pages about the same person or thing, are the exception: only you accept them, here.</p>
+    <p class="page-note">A proposal is not in the wiki until it is accepted. Pages already in the wiki with status draft, waiting for you to check them, are under <a href="/wiki/drafts">Drafts</a>.</p>
+  </header>
+  {% if proposals %}
+  <ul class="proposals">
+    {% for p in proposals %}
+    <li>
+      <div class="proposal-head">
+        {% if p.href %}<a href="{{ p.href }}">{{ p.proposal_id }}</a>{% else %}<strong>{{ p.proposal_id }}</strong>{% endif %}
+        {% if p.action %}<span class="pill plain">{{ p.action }}</span>{% endif %}
+      {% if p.dream %}<a class="pill accent" href="/dreams/{{ p.dream }}">Dream {{ p.dream }} · {{ p.pass }}</a>{% endif %}
+      {% if p.speculative %}<span class="pill unknown">Speculative: inferred, not stated</span>{% endif %}
+      </div>
+      {% if p.identity %}
+      <p class="proposal-reason"><strong>Same person or thing:</strong>
+        {% if p.duplicate_href %}<a href="{{ p.duplicate_href }}">{{ p.duplicate_title or p.duplicate }}</a>{% else %}{{ p.duplicate_title or p.duplicate }}{% endif %}
+        → {% if p.canonical_href %}<a href="{{ p.canonical_href }}">{{ p.canonical_title or p.canonical }}</a>{% else %}{{ p.canonical_title or p.canonical }}{% endif %}</p>
+      <p class="proposal-reason">Accepting consolidates the pages and leaves a minimal redirect. Git history and merge provenance preserve the originals. All distinct claims stay for review, including disagreements.</p>
+      {% if p.preview %}<details open><summary>Consolidated page preview</summary><article class="prose">{{ p.preview_html | safe }}</article><details><summary>Markdown and metadata</summary><pre>{{ p.preview }}</pre></details></details>{% else %}<p>Refresh the preview before approval.</p>{% endif %}
+      {% endif %}
+      {% if p.summary %}<p class="proposal-reason"><strong>{{ p.summary }}</strong></p>{% endif %}
+    {% if p.reason %}<p class="proposal-reason">{{ p.reason }}</p>{% endif %}
+      <dl class="meta">
+        <dt>Target</dt><dd>{% if p.target_href %}<a href="{{ p.target_href }}">{{ p.target }}</a>{% else %}{{ p.target or "–" }}{% endif %}</dd>
+        {% if p.proposed_by %}<dt>Proposed by</dt><dd>{{ p.proposed_by }}</dd>{% endif %}
+        {% if p.created %}<dt>Created</dt><dd>{{ p.created }}</dd>{% endif %}
+      </dl>
+      {% if p.identity %}<div class="proposal-actions">{% if p.preview %}{{ decide(p, "accept", "Accept merge", "primary", csrf) }}{% endif %}{{ decide(p, "refresh", "Refresh preview", "quiet", csrf) }}{{ decide(p, "reject", "Reject", "quiet", csrf) }}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% call empty("Nothing waiting for review") %}<p>When an assistant writes from lower-trust material, its changes wait here for you.</p>{% endcall %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import icon, empty %}
+{% block title %}Graph{% endblock %}
+{% block content %}
+{#- The list is the graph without JS, and the graph view's "View as list". The workspace
+    script (static/js/workspace/graph-page.js) draws the graph into [data-graph-mount]. -#}
+<div class="page page-wide graph-page" data-graph-page data-total="{{ total }}">
+  <header class="page-head">
+    <h1 class="page-title">Graph</h1>
+    <p class="page-desc">Every page and the pages it links to.</p>
+    <ul class="page-facts">
+      <li>{{ "{:,}".format(total) }} page{{ "" if total == 1 else "s" }}</li>
+      <li>{{ "{:,}".format(edges) }} link{{ "" if edges == 1 else "s" }}</li>
+      {% if broken %}<li>{{ broken }} to missing pages</li>{% endif %}
+      {% if orphans %}<li>{{ orphans }} without links</li>{% endif %}
+    </ul>
+  </header>
+  {% if nearly_empty %}
+  {% call empty("Your wiki is nearly empty") %}
+  <p>Pages appear here as assistants write them through the brain, or as you add markdown files to the wiki folder.</p>
+  {% endcall %}
+  {% endif %}
+  <div class="graph-mount" data-graph-mount hidden></div>
+  <section class="graph-list-section" id="graph-list" aria-labelledby="graph-list-h">
+    <h2 class="section-title" id="graph-list-h">Pages and their links</h2>
+    <ul class="graph-list">
+      {% for p in pages %}
+      <li>
+        <a class="graph-list-page" href="{{ href(p.id) }}" data-type="{{ p.type }}"><span class="swatch" aria-hidden="true"></span>{{ p.title }}{% if p.get("draft") %}<span class="draft-mark" title="Draft from an imported chat, to review"><span class="vh"> (draft to review)</span></span>{% endif %}</a>
+        <span class="muted">{{ p.backlink_count }} backlink{{ "" if p.backlink_count == 1 else "s" }}</span>
+        {% if links.get(p.id) %}
+        <ul class="graph-list-links" aria-label="Links from {{ p.title }}">
+          {% for t in links[p.id] %}
+          <li>{% if t.get("ghost") %}<span class="missing" data-type="broken" title="This page does not exist (yet)">{{ t.id }}<span class="vh"> (missing page)</span></span>{% else %}<a href="{{ href(t.id) }}" data-type="{{ t.type }}">{{ t.title }}</a>{% endif %}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if last > 1 %}
+    <nav class="pager" aria-label="Pages of the list">
+      {% if number > 1 %}<a class="button small" href="/wiki/graph?page={{ number - 1 }}#graph-list">Previous</a>{% else %}<span></span>{% endif %}
+      <span class="muted">Page {{ number }} of {{ last }}</span>
+      {% if number < last %}<a class="button small" href="/wiki/graph?page={{ number + 1 }}#graph-list">Next</a>{% else %}<span></span>{% endif %}
+    </nav>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

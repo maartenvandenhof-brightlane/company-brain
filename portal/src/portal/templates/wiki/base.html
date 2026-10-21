@@ -1,0 +1,44 @@
+{#- Wiki layout: [navigation] [page] [page info]. On narrow screens the side columns are
+    drawers opened by the #drawer-nav / #drawer-info checkboxes (CSS only; Escape closes
+    them when JS runs). With JS, the workspace (static/js/workspace/) fills these same slots:
+    the file explorer above .nav-views, tabs and panes in <main>, the context pane on the
+    right; .nav-types and .nav-add then give way to the explorer. -#}
+{% extends "base.html" %}
+{% from "macros.html" import icon, type_label %}
+{% block layout %}wiki{% endblock %}
+{% block drawers %}
+<input type="checkbox" id="drawer-nav" class="drawer-toggle" aria-label="Show the wiki navigation">
+{% block info_toggle %}{% endblock %}
+{% endblock %}
+{% block before_content %}
+<div class="wiki-bar">
+  <label for="drawer-nav" class="toggle-nav" aria-hidden="true">{{ icon("menu") }}Browse</label>
+  {% block info_label %}{% endblock %}
+</div>
+{% endblock %}
+{% block sidebar_left %}
+<label for="drawer-nav" class="scrim scrim-nav" aria-hidden="true"></label>
+<aside class="side side-left" aria-label="Wiki navigation">
+  <label for="drawer-nav" class="drawer-close" aria-hidden="true">{{ icon("close") }}</label>
+  <nav aria-label="Wiki" class="wiki-nav">
+    <ul class="nav-list nav-views">
+      {% for href, label, ic in [("/wiki", "Index", "index"), ("/wiki/graph", "Graph", "graph"), ("/wiki/search", "Search", "search"), ("/wiki/recent", "Recent changes", "recent"), ("/wiki/log", "Log", "log")] %}
+      <li><a href="{{ href }}"{% if path == href %} aria-current="page"{% endif %}>{{ icon(ic) }}{{ label }}</a></li>
+      {% endfor %}
+    </ul>
+    <h2 class="nav-heading">To review</h2>
+    <ul class="nav-list nav-review">
+      <li><a href="/wiki/drafts"{% if path == "/wiki/drafts" %} aria-current="page"{% endif %}>{{ icon("drafts") }}Drafts</a></li>
+      <li><a href="/wiki/proposals"{% if path == "/wiki/proposals" %} aria-current="page"{% endif %}>{{ icon("proposals") }}Proposals</a></li>
+    </ul>
+    <div class="nav-types">
+    <h2 class="nav-heading">Types</h2>
+    <ul class="nav-list">
+      {% for t in nav %}
+      <li><a href="/wiki/type/{{ t.type | urlq }}" data-type="{{ t.type }}"{% if path == "/wiki/type/" ~ t.type %} aria-current="page"{% endif %}><span class="swatch" aria-hidden="true"></span>{{ type_label(t.type) }}<span class="count"><span class="vh">, </span>{{ t.count }}<span class="vh"> pages</span></span></a></li>
+      {% endfor %}
+    </ul>
+    </div>
+  </nav>
+</aside>
+{% endblock %}

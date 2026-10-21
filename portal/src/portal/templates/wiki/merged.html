@@ -1,0 +1,19 @@
+{% extends "wiki/base.html" %}
+{% block title %}Merged pages{% endblock %}
+{% block content %}
+<div class="page">
+  <h1>Merged pages</h1>
+  <p>History view. These redirects are hidden from normal lists and counts. Older merges can be consolidated after a new owner review.</p>
+  {% for d in docs %}
+  <p><a href="{{ href(d.id) }}">{{ d.title }}</a> → <a href="{{ href(d.canonical) }}">{{ d.canonical }}</a></p>
+  {% if d.merge_consolidated %}<p>Content consolidated. Originals are preserved in Git history.</p>{% else %}
+  <form method="post" action="/wiki/merged/review">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="duplicate" value="{{ d.id }}">
+    <input type="hidden" name="canonical" value="{{ d.canonical }}">
+    <button class="button small" type="submit">Review content consolidation</button>
+  </form>
+  {% endif %}
+  {% else %}<p>No merged pages.</p>{% endfor %}
+</div>
+{% endblock %}

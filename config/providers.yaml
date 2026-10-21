@@ -1,0 +1,89 @@
+# Providers the stack knows about: model providers (routed by LiteLLM) and web search
+# services (used by LibreChat). Single source for:
+#   - the portal (store, test and remove API keys per provider)
+#   - scripts/refresh_models.py (which key belongs to which LiteLLM provider prefix, and
+#     which search features LibreChat gets)
+#   - the key migration from .env in scripts/stack.sh
+#
+# Adding a provider: add an entry here. The portal then offers it and LiteLLM lists its
+# models (every id from its /models endpoint, OpenAI-style `data[].id`). For finer
+# filtering (e.g. chat models only), add a filter named after the provider in
+# scripts/refresh_models.py (see FILTERS there). LiteLLM must support the prefix:
+# https://docs.litellm.ai/docs/providers
+#
+# Fields:
+#   label          shown in the portal
+#   kind           model (default) or search
+#   env            variable name the key is exported as (LiteLLM: os.environ/<env> in configs;
+#                  search keys: listed in compose.yaml, where LibreChat's supervisor loads them)
+#   litellm_prefix LiteLLM provider prefix for model ids (<prefix>/<model-id>; models only)
+#   models_url     GET endpoint used to validate a key and list models (models only)
+#   check_url      endpoint used to validate a key (search only)
+#   check_body     JSON body; when set, the check is a POST (a tiny, billed request)
+#   purpose        one line in the portal on what the key enables (optional)
+#   auth           how the key is sent: bearer (Authorization: Bearer) or x-api-key
+#   headers        extra request headers (optional)
+#   key_prefix     public prefix of this provider's keys, kept visible when masking (optional)
+#   keys_url       where the owner creates a key (optional)
+
+providers:
+  anthropic:
+    label: Anthropic
+    env: ANTHROPIC_API_KEY
+    litellm_prefix: anthropic
+    models_url: https://api.anthropic.com/v1/models
+    auth: x-api-key
+    headers:
+      anthropic-version: "2023-06-01"
+    key_prefix: sk-ant-
+    keys_url: https://console.anthropic.com/settings/keys
+
+  openai:
+    label: OpenAI
+    env: OPENAI_API_KEY
+    litellm_prefix: openai
+    models_url: https://api.openai.com/v1/models
+    auth: bearer
+    key_prefix: sk-
+    keys_url: https://platform.openai.com/api-keys
+
+  mistral:
+    label: Mistral
+    env: MISTRAL_API_KEY
+    litellm_prefix: mistral
+    models_url: https://api.mistral.ai/v1/models
+    auth: bearer
+    keys_url: https://console.mistral.ai/api-keys
+
+  # ---- web search (LibreChat). Search results themselves come from the self-hosted
+  # SearXNG container, which needs no key.
+  tavily:
+    label: Tavily
+    kind: search
+    env: TAVILY_API_KEY
+    purpose: Reads the pages SearXNG finds, so answers quote the page and not just its snippet. Required for web search.
+    check_url: https://api.tavily.com/usage
+    auth: bearer
+    key_prefix: tvly-
+    keys_url: https://app.tavily.com/home
+
+  jina:
+    label: Jina
+    kind: search
+    env: JINA_API_KEY
+    purpose: Ranks the page passages by relevance before they reach the model. Optional; without it web search runs unranked.
+    check_url: https://api.jina.ai/v1/rerank
+    check_body: {model: jina-reranker-v2-base-multilingual, query: key check, documents: [key check], top_n: 1}
+    auth: bearer
+    key_prefix: jina_
+    keys_url: https://jina.ai/api-dashboard/key-manager
+
+  exa:
+    label: Exa
+    kind: search
+    env: EXA_API_KEY
+    purpose: Adds the Exa search tools (MCP server "exa") to the presets, including people and company search for LinkedIn-style lookups.
+    check_url: https://api.exa.ai/search
+    check_body: {query: key check, numResults: 1}
+    auth: x-api-key
+    keys_url: https://dashboard.exa.ai/api-keys

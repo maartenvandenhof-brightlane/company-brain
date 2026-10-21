@@ -1,0 +1,85 @@
+{#- The app shell. Slots (Jinja blocks) for every page:
+      head            extra <head> content (the import page's refresh)
+      layout          "centred" (default), "narrow" or "wiki" (three columns, see wiki/base.html)
+      topbar          the bar with sections, search and the settings menu
+      sidebar_left    optional left column (wiki: navigation)
+      content         the main column
+      sidebar_right   optional right column (wiki page: backlinks, links, properties)
+      main_attrs      extra attributes on <main> (wiki: data-type for the type colour)
+    Everything works without JS; /static/js/portal.js only enhances. -#}
+{% from "macros.html" import icon, notice_list, brand_mark %}
+{% set authed = session and session.authenticated %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="same-origin">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#edf0ed" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151b1d" media="(prefers-color-scheme: dark)">
+<title>{% block title %}{{ title }}{% endblock %} – {{ title }}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/static/fonts/literata-roman-latin.woff2" as="font" type="font/woff2" crossorigin>
+<script src="/static/js/theme-init.js"></script>
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/portal.css">
+<link rel="stylesheet" href="/static/css/prose.css">
+<link rel="stylesheet" href="/static/css/workspace.css">
+<script type="module" src="/static/js/portal.js"></script>
+{% block head %}{% endblock %}
+</head>
+{% set layout = self.layout() | trim %}
+<body class="layout-{{ layout }}{% block body_class %}{% endblock %}">
+<a class="skip" href="#content">Skip to content</a>
+{% if authed %}
+{% block topbar %}
+{% set in_wiki = path.startswith("/wiki") %}
+{% set in_settings = path.startswith("/settings") or path.startswith("/dreams") or path.startswith("/dashboard") or path.startswith("/usage") or path.startswith("/keys") or path.startswith("/apps") or path.startswith("/docs") %}
+<header class="topbar">
+  <a class="brand" href="/wiki" aria-label="{{ title }}: the wiki">
+    {{ brand_mark() }}
+    <span class="brand-name">{{ title }}</span>
+  </a>
+  <nav class="sections" aria-label="Sections">
+    <a href="/wiki"{% if in_wiki %} aria-current="page"{% endif %}>Wiki</a>
+  </nav>
+  <div class="topbar-end">
+    <form class="topsearch" method="get" action="/wiki/search" role="search">
+      {{ icon("search") }}
+      <input type="search" name="q" placeholder="Search the wiki" aria-label="Search the wiki">
+    </form>
+    <a class="icon-link search-link" href="/wiki/search" aria-label="Search the wiki">{{ icon("search") }}</a>
+    <details class="menu">
+      <summary{% if in_settings %} data-current{% endif %}>{{ icon("settings") }}<span class="menu-text">Settings</span><span class="vh"> and sign out</span></summary>
+      <div class="menu-panel">
+        <nav aria-label="Settings">
+          <a href="/apps"{% if path.startswith("/apps") %} aria-current="page"{% endif %}>{{ icon("lock") }}Connected apps</a>
+          <a href="/docs"{% if path.startswith("/docs") %} aria-current="page"{% endif %}>{{ icon("docs") }}Docs</a>
+        </nav>
+        <hr>
+        <form method="post" action="/logout" class="logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit">{{ icon("signout") }}Sign out</button>
+        </form>
+      </div>
+    </details>
+  </div>
+</header>
+{% endblock %}
+{% endif %}
+{% block drawers %}{% endblock %}
+<div class="shell">
+  {% block sidebar_left %}{% endblock %}
+  <main id="content" class="main" tabindex="-1"{% block main_attrs %}{% endblock %}>
+    {% block before_content %}{% endblock %}
+    {{ notice_list(notices) }}
+    {% block content %}{% endblock %}
+  </main>
+  {% block sidebar_right %}{% endblock %}
+</div>
+</body>
+</html>
+{#- default layout; pages override with {% block layout %}narrow{% endblock %} -#}
+{% if false %}{% block layout %}centred{% endblock %}{% endif %}

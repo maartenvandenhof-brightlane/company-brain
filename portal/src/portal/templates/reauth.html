@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon %}
+{% block title %}Confirm it's you{% endblock %}
+{% block layout %}narrow{% endblock %}
+{% block content %}
+<section class="auth-card" aria-labelledby="reauth-title">
+  <h1 id="reauth-title">Confirm it's you</h1>
+  <p class="lead">Changing API keys and importing chats need your password{% if needs_totp %} and a fresh authenticator code{% endif %}. You won't be asked again for a few minutes.</p>
+  {% if error %}<div class="callout bad" role="alert">{{ icon("alert") }}<p class="err">{{ error }}</p></div>{% endif %}
+  <form method="post" action="/reauth">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="pw">
+        <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+        <button type="button" class="reveal" data-reveal="password" aria-label="Show password" aria-pressed="false" hidden>{% include "eye.svg" %}</button>
+      </div>
+    </div>
+    {% if needs_totp %}
+    <div class="field">
+      <label for="totp">Authenticator code</label>
+      <input id="totp" name="totp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" required>
+    </div>
+    {% endif %}
+    <button class="button primary form-submit" type="submit">Confirm</button>
+  </form>
+  <p class="auth-foot"><a href="{{ next }}">Cancel</a></p>
+</section>
+{% endblock %}

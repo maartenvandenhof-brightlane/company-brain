@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "macros.html" import empty, stepper, callout %}
+{% block title %}Dreams{% endblock %}
+{% block head %}{% if running %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Dreams</h1>
+  <p class="lead">A dream tidies up the reviewed part of your wiki in the background: it files new chats as drafts, fixes small things, proposes what follows from your notes, and writes the briefing every conversation starts with. Every change it makes is in the wiki's history and can be reverted here; everything else is a <a href="/wiki/proposals">proposal</a> for you. <a href="/docs/dreaming">How dreams work</a></p>
+</header>
+
+<section class="panel" aria-labelledby="now-title">
+  <div class="panel-head">
+    <h2 id="now-title">Dream now</h2>
+    <p class="hint">Mode: <code>{{ mode }}</code>{% if mode == "review" %}: dreams only run when you start one here{% else %}: the portal checks every {{ check_minutes }} min and starts a dream by itself when one is due{% endif %}.</p>
+  </div>
+  {% if due_error %}
+  {% call callout("warn", "Whether a dream is due is not known", "alert") %}<p>Not checked: {{ due_error }}.</p>{% endcall %}
+  {% elif due %}
+  {% call callout("ok" if due.due else "info", "A dream is due: " ~ ("yes" if due.due else "no"), "check" if due.due else "info") %}
+  <ul class="plain" id="dream-due">{% for reason in due.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+  {% if due.due and mode == "review" %}<p class="hint">In review mode nothing starts by itself: use Dream now.</p>{% endif %}
+  {% endcall %}
+  {% endif %}
+  {% if progress %}
+  <div class="ideate{{ ' failed' if progress.error else '' }}" id="dreams-progress">
+    {{ stepper(steps, progress.step, "Dreaming", failed=progress.error != "", finished=progress.finished) }}
+    <p class="progress-text"><span>{{ progress.text }}</span> <span>{{ progress.seconds }} s</span></p>
+  </div>
+  {% endif %}
+  <form method="post" action="/dreams/run" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="button primary" name="dry_run" value="0"{% if running or held %} disabled{% endif %}>Dream now</button>
+    <button type="submit" class="button" name="dry_run" value="1"{% if running or held %} disabled{% endif %}>Dream now (dry run)</button>
+  </form>
+  <p class="hint">A dry run goes through every pass and writes nothing: you can read what it would have done. Ideas are found again after every dream (see <a href="/ideas">Ideas</a>).</p>
+</section>
+
+<section class="panel" aria-labelledby="assistant-title">
+  <div class="panel-head">
+    <h2 id="assistant-title">Dream in Claude.ai or ChatGPT</h2>
+    <p class="hint">Run a dream by hand in a chat: the assistant's model does the thinking, the wiki checks every change as it does for any dream. The small fixes are made as you start; then you tell the assistant which dream to run. The session ends after two hours. <a href="/docs/dreaming">How it works</a></p>
+  </div>
+  {% if held %}
+  {% call callout("info", what(held) ~ " is waiting in " ~ client_name(held), "info") %}<p><a href="/dreams/{{ held.id }}">Open dream {{ held.id }}</a> for what to tell the assistant, or to end its session. No other dream starts until it ends.</p>{% endcall %}
+  {% else %}
+  <form method="post" action="/dreams/assistant">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <fieldset class="scope">
+      <legend>Where you will run it</legend>
+      {% for value, label in clients.items() %}<label class="check"><input type="radio" name="client" value="{{ value }}"{% if loop.first %} checked{% endif %}>{{ label }}</label>
+      {% endfor %}
+    </fieldset>
+    <div class="row"><button type="submit" class="button"{% if running %} disabled{% endif %}>Dream in Claude.ai/ChatGPT</button></div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="section" aria-labelledby="list-title">
+  <h2 id="list-title">Past dreams</h2>
+  {% if dreams %}
+  <div class="table-wrap"><table class="data reflow">
+    <thead><tr>
+      <th scope="col">Dream</th>
+      <th scope="col">Trigger</th>
+      <th scope="col" class="num">Commits</th>
+      <th scope="col" class="num">Proposals</th>
+      <th scope="col" class="num">Cost</th>
+      <th scope="col">Log</th>
+      <th scope="col"><span class="vh">Revert</span></th>
+    </tr></thead>
+    <tbody>
+    {% for d in dreams %}
+    <tr id="dream-{{ d.id }}">
+      <td class="cell-main"><a href="/dreams/{{ d.id }}">Dream {{ d.id }}</a><span class="cell-sub">{{ d.started[:16] | replace("T", " ") }} UTC{% if d.running %}, running{% endif %}</span>{% if d.error %}<span class="cell-sub">{{ d.error }}</span>{% endif %}{% if d.reverted %}<span class="cell-sub">Reverted {{ d.reverted }}</span>{% endif %}</td>
+      <td data-label="Trigger">{% if d.dry_run %}<span class="pill plain">dry run</span>{% elif d.client %}{{ d.trigger }} ({{ client_name(d) }}){% else %}{{ d.trigger }}{% endif %}</td>
+      <td class="num" data-label="Commits">{{ d.commits | length }}</td>
+      <td class="num" data-label="Proposals">{{ d.proposals | length }}</td>
+      <td class="num" data-label="Cost">{% if d.client %}–{% else %}€{{ "%.3f" | format(d.cost_eur) }}{% endif %}</td>
+      <td data-label="Log">{% if d.log_page %}<a href="/wiki/page/{{ d.log_page }}">{{ d.log_page.rsplit("/", 1)[-1] }}</a>{% elif d.dry_run and d.finished %}<a href="/dreams/{{ d.id }}">would-be log</a>{% else %}–{% endif %}</td>
+      <td>{% if not d.dry_run and d.finished and not d.reverted and (d.commits or d.proposals) %}
+        <form method="post" action="/dreams/{{ d.id }}/revert">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" class="button small danger"{% if running %} disabled{% endif %}>Revert</button>
+        </form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  {% call empty("No dreams yet") %}
+  <p>Start with a dry run: it shows what a dream would change without writing anything. Dreams only touch pages you marked reviewed (see <a href="/wiki/drafts">Drafts</a>).</p>
+  {% endcall %}
+  {% endif %}
+</section>
+{% endblock %}

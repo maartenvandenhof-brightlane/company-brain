@@ -1,0 +1,169 @@
+/* Reading typography for rendered markdown (wiki pages, the log, the index, docs).
+   The HTML comes from portal/render.py: sanitised, with links marked
+   .internal / .external / .broken and images turned into links. */
+
+.prose {
+  max-width: var(--measure);
+  font-family: var(--font-read);
+  font-optical-sizing: auto;
+  font-size: var(--fs-read);
+  line-height: var(--lh-read);
+  color: var(--ink);
+  overflow-wrap: break-word;
+  hyphens: auto;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+.prose > :first-child { margin-top: 0; }
+.prose p { margin: 0 0 1.05em; text-wrap: pretty; }
+
+/* headings: a clear rhythm with more space above than below */
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  font-family: var(--font-read);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  font-variant-numeric: lining-nums;
+}
+.prose h1 { font-size: 1.9em; margin: 1.4em 0 0.5em; letter-spacing: -0.02em; }
+.prose h2 { font-size: 1.42em; margin: 1.9em 0 0.55em; }
+.prose h3 { font-size: 1.17em; margin: 1.6em 0 0.45em; }
+.prose h4 { font-size: 1em; margin: 1.5em 0 0.4em; }
+.prose h5, .prose h6 { font-size: 0.9em; margin: 1.4em 0 0.35em; color: var(--ink-2); }
+.prose :is(h1, h2, h3, h4) + :is(h2, h3, h4) { margin-top: 0.8em; }
+
+/* the page shows its title in the page header; the body's own leading "# Title" is hidden */
+.hide-lead-title > .prose > h1:first-child { display: none; }
+.hide-lead-title > .prose > h1:first-child + * { margin-top: 0; }
+/* raw sources open with wiki-mcp's "[!NOTE] Immutable raw source" quote, which the page
+   banner already states, then their title */
+.is-raw .prose > blockquote:first-child,
+.is-raw .prose > blockquote:first-child + h1 { display: none; }
+.is-raw .prose > blockquote:first-child + h1 + * { margin-top: 0; }
+
+/* lists */
+.prose ul, .prose ol { margin: 0 0 1.05em; padding-left: 1.35em; }
+.prose li { margin: 0.3em 0; padding-left: 0.15em; }
+.prose li > ul, .prose li > ol { margin: 0.3em 0 0.4em; }
+.prose ul > li::marker { color: var(--ink-3); }
+.prose ol > li::marker { color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; font-size: 0.92em; }
+
+/* links: wiki links are solid, outside links carry a small arrow, missing pages are dashed */
+.prose a {
+  color: var(--accent);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--dur-1) var(--ease);
+}
+.prose a:hover { text-decoration-color: currentColor; text-decoration-thickness: 2px; }
+.prose a.external::after {
+  content: "\2197";
+  display: inline-block; margin-left: 0.12em;
+  font-family: var(--font-ui); font-size: 0.72em; line-height: 1;
+  vertical-align: 0.35em; text-decoration: none; color: var(--ink-3);
+}
+.prose a.broken {
+  color: var(--link-broken);
+  text-decoration-style: dashed;
+  text-decoration-color: color-mix(in srgb, var(--link-broken) 70%, transparent);
+  cursor: help;
+}
+.prose a.broken:not([href]) { cursor: not-allowed; }
+
+/* quotes and callouts */
+.prose blockquote {
+  margin: 1.4em 0;
+  padding: 0.15em 0 0.15em 1.1em;
+  border-left: 3px solid var(--rule-strong);
+  color: var(--ink-2);
+}
+.prose blockquote > :last-child { margin-bottom: 0; }
+.prose blockquote blockquote { margin: 0.8em 0; }
+/* a quote that opens with a bold lead ("**Note:** …") reads as a callout */
+.prose blockquote:has(> p:first-child > strong:first-child) {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  padding: 0.7em 1em 0.7em 1.1em;
+  color: var(--ink);
+}
+
+/* code */
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  background: var(--sunk);
+  padding: 0.1em 0.35em;
+  border-radius: var(--r-sm);
+  overflow-wrap: anywhere;
+  hyphens: none;
+}
+.prose pre {
+  margin: 1.3em 0;
+  padding: 0.95em 1.1em;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  font-size: 0.82em;
+  line-height: 1.6;
+  tab-size: 2;
+  hyphens: none;
+  scrollbar-width: thin;
+}
+.prose pre code { font-size: inherit; background: none; padding: 0; border-radius: 0; overflow-wrap: normal; white-space: pre; }
+
+/* tables: UI type, tabular figures, a heavier rule under the head */
+.prose table {
+  width: 100%;
+  margin: 1.4em 0;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: var(--fs-ui);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  hyphens: none;
+}
+.prose th, .prose td { text-align: left; vertical-align: top; padding: 0.55em 0.75em; border-bottom: 1px solid var(--rule); }
+.prose th { font-weight: 650; color: var(--ink-2); border-bottom: 2px solid var(--rule-strong); }
+.prose tr > :first-child { padding-left: 0; }
+.prose tr > :last-child { padding-right: 0; }
+.prose td code { font-size: 0.9em; }
+
+.prose hr { border: 0; height: 1px; background: var(--rule); margin: 2.4em 0; }
+.prose strong { font-weight: 650; }
+.prose del, .prose s { color: var(--ink-3); }
+
+@media (max-width: 520px) {
+  .prose { font-size: 1.0625rem; line-height: 1.65; }
+  .prose h1 { font-size: 1.65em; }
+  .prose h2 { font-size: 1.3em; }
+}
+
+/* ------------------------------------------------------------------ chat transcripts
+   Imported chats (raw/chats/…) are one "## User · date" / "## Assistant · date" heading
+   per message; headings inside messages are demoted below that. */
+.transcript .prose > h1:first-of-type + ul {
+  list-style: none; padding: 0.8em 1em; margin: 0 0 2em;
+  font-family: var(--font-ui); font-size: var(--fs-sm); line-height: 1.5;
+  color: var(--ink-2);
+  background: var(--sunk); border-radius: var(--r-md);
+}
+.transcript .prose > h1:first-of-type + ul li { margin: 0.15em 0; padding: 0; }
+.transcript .prose > h2 {
+  display: flex; align-items: center; gap: 0.6em;
+  margin: 2.2em 0 0.7em; padding-top: 1.1em;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-ui); font-size: var(--fs-sm); font-weight: 650;
+  letter-spacing: 0; color: var(--ink-2);
+}
+.transcript .prose > h2::before {
+  content: ""; flex: none;
+  width: 0.55em; height: 0.55em; border-radius: 50%;
+  background: var(--type-source);
+}
+.transcript .prose > h1:first-of-type + ul + h2 { border-top: 0; padding-top: 0; margin-top: 0; }
+.transcript .prose h3 { font-size: 1.08em; }

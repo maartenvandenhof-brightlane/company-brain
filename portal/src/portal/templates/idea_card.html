@@ -1,0 +1,47 @@
+{#- One idea as a card (ideas/view.py Card): its kind, the goal or loop it serves, the text,
+    why now, the next step, a challenge's counterargument, its sources, and the owner's
+    answers. `back` is where the answer returns to (/ideas or /home). Import with context
+    (the forms need `csrf`). -#}
+{% from "macros.html" import icon %}
+{% macro idea_card(c, back, compact=False) %}
+{% set i = c.idea %}
+<article class="idea{{ ' compact' if compact else '' }}" id="idea-{{ i.id }}" data-kind="{{ i.kind }}" data-state="{{ i.state }}">
+  {% if not compact %}<p class="idea-kind">{{ c.label }}</p>{% endif %}
+  {% if c.serves and not compact %}<p class="idea-serves"><span class="idea-serves-label">{{ c.serves }}:</span> {{ c.serves_text }}</p>{% endif %}
+  <div class="idea-text">{{ c.html | safe }}</div>
+  {% if c.counter %}
+  <div class="idea-counter"><p class="idea-counter-label">Strongest counterargument</p>{{ c.counter | safe }}</div>
+  {% endif %}
+  {% if not compact and (c.why_now or c.next_step) %}
+  <dl class="idea-why">
+    {% if c.why_now %}<div><dt>Why now</dt><dd>{{ c.why_now | safe }}</dd></div>{% endif %}
+    {% if c.next_step %}<div><dt>Next step</dt><dd>{{ c.next_step | safe }}</dd></div>{% endif %}
+  </dl>
+  {% endif %}
+  <ul class="idea-cites" aria-label="Sources">
+    {% for s in c.cites %}
+    <li><a href="{{ s.href }}" data-type="{{ s.type if s.known else 'broken' }}"{% if not s.known %} class="broken" title="This page is no longer in the wiki"{% endif %}><span class="swatch" aria-hidden="true"></span>{{ s.title }}</a></li>
+    {% endfor %}
+  </ul>
+  <form class="idea-actions" method="post" action="/ideas/{{ i.id }}/state">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="back" value="{{ back }}">
+    {% if compact %}
+    <button class="button small" name="state" value="done">{{ icon("check") }}Done</button>
+    <button class="button small quiet" name="state" value="dismissed">Dismiss</button>
+    {% else %}
+    {% if i.state == "useful" %}
+    <button class="button small is-on" name="state" value="new" aria-pressed="true">Useful</button>
+    {% else %}
+    <button class="button small" name="state" value="useful" aria-pressed="false">Useful</button>
+    {% endif %}
+    <button class="button small quiet" name="state" value="not_useful">Not useful</button>
+    <button class="button small quiet" name="snooze" value="7">Snooze 7 d</button>
+    <button class="button small quiet" name="snooze" value="30">Snooze 30 d</button>
+    <button class="button small quiet" name="state" value="already_doing">Already doing</button>
+    <button class="button small quiet" name="state" value="done">Done</button>
+    <button class="button small quiet" name="state" value="dismissed">Dismiss</button>
+    {% endif %}
+  </form>
+</article>
+{% endmacro %}

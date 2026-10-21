@@ -1,0 +1,31 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import empty %}
+{% block title %}Recent changes{% endblock %}
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <h1 class="page-title">Recent changes</h1>
+    <p class="page-desc">What assistants changed, newest first. Each change is one git commit.</p>
+  </header>
+  {% if changes %}
+  <ol class="changes">
+    {% for c in changes %}
+    <li>
+      <div class="change-summary">{{ c.summary }}</div>
+      {% if c.reason %}<p class="change-reason">{{ c.reason }}</p>{% endif %}
+      <div class="change-meta"><span>{{ c.author }}</span><span>{{ c.date }}</span><code>{{ c.commit }}</code></div>
+      {% if c.files %}
+      <ul class="change-files">
+        {% for f in c.files %}
+        <li><span class="file-status-badge s-{{ (f.status | string)[:1] }}" title="{{ {'A': 'added', 'M': 'modified', 'D': 'deleted', 'R': 'renamed'}.get((f.status | string)[:1], f.status) }}">{{ (f.status | string)[:1] }}</span>{% if f.href %}<a href="{{ f.href }}">{{ f.path }}</a>{% else %}<span>{{ f.path }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  {% call empty("No history yet") %}<p>Changes appear here once an assistant writes to the wiki.</p>{% endcall %}
+  {% endif %}
+</div>
+{% endblock %}

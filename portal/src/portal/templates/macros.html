@@ -1,0 +1,144 @@
+{# Components shared by the portal templates. Only literal markup is marked |safe here. #}
+
+{% set ICONS = {
+  "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>',
+  "index": '<path d="M5 4h10l4 4v12H5z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/>',
+  "recent": '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  "log": '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>',
+  "proposals": '<path d="M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20"/><path d="M6 5h12l2 8.5V19H4v-5.5z"/>',
+  "drafts": '<path d="M5 20.5h4l10.5-10.5-4-4L5 16.5z"/><path d="m13.5 8 4 4"/>',
+  "assistant": '<path d="M4.5 5.5h15v10h-8l-4.5 4v-4h-2.5z"/><path d="M9 10.5h.01M12 10.5h.01M15 10.5h.01"/>',
+  "upload": '<path d="M12 15.5V4.5M7 9l5-4.5L17 9M5 19.5h14"/>',
+  "settings": '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  "status": '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
+  "usage": '<path d="M3.5 20.5h17M6.5 20.5V13M12 20.5V6.5M17.5 20.5V10"/>',
+  "key": '<circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16.5 6.5l2.5 2.5"/>',
+  "docs": '<path d="M6 3.5h8.5l4 4v13H6z"/><path d="M14 3.5V8h4.5M9 13h6.5M9 16.5h6.5"/>',
+  "signout": '<path d="M14.5 4.5H19v15h-4.5M10 8l-4 4 4 4M6 12h10"/>',
+  "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  "info": '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.01"/>',
+  "close": '<path d="m6 6 12 12M18 6 6 18"/>',
+  "check": '<path d="m5 12.5 4.5 4.5L19 7"/>',
+  "alert": '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.2v.01"/>',
+  "lock": '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+  "chevron": '<path d="m9.5 6 6 6-6 6"/>',
+  "external": '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
+  "copy": '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v9.5a1 1 0 0 0 1 1h3.5"/>',
+  "refresh": '<path d="M19.5 11A7.5 7.5 0 1 0 17.3 17.3"/><path d="M20 4.5V11h-6.5"/>',
+  "plus": '<path d="M12 5v14M5 12h14"/>',
+  "x-circle": '<circle cx="12" cy="12" r="8.5"/><path d="m9 9 6 6M15 9l-6 6"/>',
+  "graph": '<circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="6" r="2"/><circle cx="15" cy="18" r="3"/><path d="m8.4 7.6 7.7-1.3M7.6 9l5.6 6.8M17.7 8l-1.9 7.1"/>',
+  "process": '<path d="M4 6.5h9M4 12h6M4 17.5h9"/><path d="m15 9 4.5 3-4.5 3z"/>',
+} %}
+
+{% macro brand_mark() -%}
+<svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect class="sheet-shape" x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path class="tab-shape" d="M7 3h5v5.2l-2.5-1.6L7 8.2z"/></svg>
+{%- endmacro %}
+
+{% macro icon(name) -%}
+<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{{ ICONS[name] | safe }}</svg>
+{%- endmacro %}
+
+{# Plural labels for the page types in config/wiki-types.yaml; other types show their name. #}
+{% set TYPE_LABELS = {
+  "person": "People", "organization": "Organizations", "project": "Projects",
+  "concept": "Concepts", "decision": "Decisions", "meeting": "Meetings", "howto": "How-tos",
+  "owner": "Owner", "reference": "References", "source": "Raw sources", "maintenance-report": "Maintenance reports",
+  "guide": "Guides", "proposal": "Proposals",
+} %}
+
+{% macro type_label(t) -%}
+{{ TYPE_LABELS.get(t) or (t | replace("-", " ") | capitalize) or "Other" }}
+{%- endmacro %}
+
+{# A page type as a small coloured chip. #}
+{% macro type_chip(t, href="") -%}
+{% if href %}<a class="type-chip" data-type="{{ t or '' }}" href="{{ href }}">{{ t or "untyped" }}</a>
+{%- else %}<span class="type-chip" data-type="{{ t or '' }}">{{ t or "untyped" }}</span>{% endif %}
+{%- endmacro %}
+
+{# Flash messages from session.notify(): ok is a status, bad an alert. #}
+{% macro notice_list(notices) %}
+{% if notices %}
+<div class="notices">
+  {% for level, text in notices %}
+  <div class="callout {{ 'bad' if level == 'bad' else 'ok' }}" role="{{ 'alert' if level == 'bad' else 'status' }}">
+    {{ icon("alert" if level == "bad" else "check") }}
+    <p class="notice {{ level }}">{{ text }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro callout(kind, title="", icon_name="info") %}
+<div class="callout {{ kind }}"{% if kind == "bad" %} role="alert"{% endif %}>
+  {{ icon(icon_name) }}
+  <div class="callout-body">
+    {% if title %}<p class="callout-title">{{ title }}</p>{% endif %}
+    {{ caller() }}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro empty(title) %}
+<section class="empty">
+  <p class="empty-title">{{ title }}</p>
+  {{ caller() }}
+</section>
+{% endmacro %}
+
+{# steps: labels in order; current: 1-based; failed: the current step ended badly. #}
+{% macro stepper(steps, current, label, failed=False, finished=False) %}
+<ol class="stepper" aria-label="{{ label }}">
+  {% for s in steps %}
+  {% set n = loop.index %}
+  <li class="{{ 'done' if n < current or (finished and n == current and not failed) else '' }}{{ ' failed' if failed and n == current else '' }}"{% if n == current %} aria-current="step"{% endif %}>
+    <span class="dot" aria-hidden="true"></span>
+    <span class="step-label">{{ s }}{% if n < current %}<span class="vh"> (done)</span>{% endif %}</span>
+  </li>
+  {% endfor %}
+</ol>
+{% endmacro %}
+
+{# Frontmatter values: plain text, {"link"}, {"list"} or {"dict"} (see wiki._frontmatter_rows). #}
+{% macro value(v) %}
+{%- if v is mapping and "link" in v -%}
+<a href="{{ v.href }}">{{ v.link }}</a>
+{%- elif v is mapping and "list" in v -%}
+{% if v.list | length == 0 %}<span class="muted">none</span>{% else %}
+<ul class="plain">{% for item in v.list %}<li>{{ value(item) }}</li>{% endfor %}</ul>{% endif %}
+{%- elif v is mapping and "dict" in v -%}
+<dl class="meta">{% for k, item in v.dict %}<dt>{{ k }}</dt><dd>{{ value(item) }}</dd>{% endfor %}</dl>
+{%- else -%}
+{{ v }}
+{%- endif %}
+{% endmacro %}
+
+{% macro search_box(q="", type="", types=[], autofocus=False) %}
+<form class="search-form" method="get" action="/wiki/search" role="search">
+  <div class="search-input">
+    {{ icon("search") }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search the wiki" aria-label="Search the wiki"{% if autofocus %} autofocus{% endif %}>
+  </div>
+  {% if types %}
+  <select name="type" aria-label="Type">
+    <option value="">All types</option>
+    {% for t in types %}<option value="{{ t.type }}"{% if t.type == type %} selected{% endif %}>{{ type_label(t.type) }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <button type="submit" class="button">Search</button>
+</form>
+{% endmacro %}
+
+{# A wiki page in a sidebar list: type swatch, title, optional second line. #}
+{% macro page_item(href, text, t="", sub="") %}
+<li><a href="{{ href }}" data-type="{{ t or '' }}"><span class="swatch" aria-hidden="true"></span><span class="link-text">{{ text }}{% if sub %}<small>{{ sub }}</small>{% endif %}</span></a></li>
+{% endmacro %}
+
+{% macro review_button(id, next, csrf) %}
+<form class="review-form" method="post" action="/wiki/review">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ id }}"><input type="hidden" name="next" value="{{ next }}">
+  <button type="submit" class="button small">Mark reviewed</button>
+</form>
+{% endmacro %}

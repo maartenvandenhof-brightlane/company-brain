@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "macros.html" import empty %}
+{% set cur = report.currency %}
+{% macro tokens(n) %}{{ "{:,}".format(n) }}{% endmacro %}
+{% block title %}Usage{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Usage</h1>
+  <p class="lead">What your models cost. LiteLLM records every call it passes on to a provider: chats, chat titles and anything else that uses your API keys.</p>
+</header>
+
+{% if report.empty %}
+{% call empty("No model calls recorded yet") %}
+<p>The cost of each model call is recorded from now on. Chats from before this was set up are not counted.</p>
+<div class="actions"><a class="button primary" href="{{ chat_url }}" rel="noopener noreferrer" target="_blank">Open chat</a></div>
+{% endcall %}
+{% else %}
+
+<section class="spend" aria-label="Spent this month">
+  <p class="spend-line">
+    <span class="spend-amount num">{{ cur.money(report.this_month.cost) }}</span>
+    <span class="spend-label">spent in {{ month_label(report.current) }}</span>
+  </p>
+  <dl class="facts">
+    <div><dt>Last month</dt><dd class="num">{{ cur.money(report.last_month.cost) }}</dd></div>
+    <div><dt>All time</dt><dd class="num">{{ cur.money(report.all_time.cost) }}</dd></div>
+    <div><dt>Calls this month</dt><dd class="num">{{ tokens(report.this_month.calls) }}</dd></div>
+    <div><dt>Counted since</dt><dd>{{ report.since }}</dd></div>
+  </dl>
+</section>
+
+<section class="section" aria-labelledby="models-title">
+  <h2 id="models-title">By model, {{ month_label(report.month) }}</h2>
+  {% if report.by_model %}
+  {% set total = report.selected.cost %}
+  <div class="table-wrap"><table class="data reflow">
+    <thead><tr>
+      <th scope="col">Model</th>
+      <th scope="col" class="num">Calls</th>
+      <th scope="col" class="num">Input tokens</th>
+      <th scope="col" class="num">Output tokens</th>
+      <th scope="col" class="num">Cost</th>
+      <th scope="col" class="num">Share</th>
+    </tr></thead>
+    <tbody>
+    {% for model, t in report.by_model %}
+    <tr>
+      <td class="cell-main"><code>{{ model }}</code>{% if t.unpriced %}<span class="cell-sub">{{ t.unpriced }} call{{ "s" if t.unpriced != 1 }} without a public price</span>{% endif %}</td>
+      <td class="num" data-label="Calls">{{ tokens(t.calls) }}</td>
+      <td class="num" data-label="Input tokens">{{ tokens(t.tokens_in) }}</td>
+      <td class="num" data-label="Output tokens">{{ tokens(t.tokens_out) }}</td>
+      {% set priced = t.unpriced < t.calls %}
+      <td class="num" data-label="Cost">{{ cur.money(t.cost) if priced else "–" }}</td>
+      <td class="num" data-label="Share">{% if priced and total > 0 %}{{ "%.0f" | format(t.cost / total * 100) }}%{% else %}–{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">No calls in {{ month_label(report.month) }}.</p>
+  {% endif %}
+</section>
+
+<section class="section" aria-labelledby="months-title">
+  <h2 id="months-title">By month</h2>
+  <div class="table-wrap"><table class="data reflow usage-months">
+    <thead><tr>
+      <th scope="col">Month</th>
+      <th scope="col" class="num">Calls</th>
+      <th scope="col" class="num">Tokens</th>
+      <th scope="col" class="num">Cost</th>
+    </tr></thead>
+    <tbody>
+    {% for key, t in report.months %}
+    <tr{% if key == report.month %} class="selected"{% endif %}>
+      <td class="cell-main"><a href="/usage?month={{ key }}"{% if key == report.month %} aria-current="true"{% endif %}>{{ month_label(key) }}</a></td>
+      <td class="num" data-label="Calls">{{ tokens(t.calls) }}</td>
+      <td class="num" data-label="Tokens">{{ tokens(t.tokens_in + t.tokens_out) }}</td>
+      <td class="num" data-label="Cost">{{ cur.money(t.cost) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<p class="hint usage-note">Costs are LiteLLM's reckoning from public list prices{% if cur.code != "USD" %}, converted from US dollars at the ECB reference rate LibreChat also uses (1 USD = {{ "%.4f" | format(cur.rate) }} {{ cur.code }}){% endif %}. Your providers' invoices are what you actually pay.{% if report.all_time.unpriced %} {{ report.all_time.unpriced }} call{{ "s" if report.all_time.unpriced != 1 }} used a model without a public price and count as free.{% endif %}</p>
+{% endif %}
+{% endblock %}

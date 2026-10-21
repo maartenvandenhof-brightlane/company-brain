@@ -1,0 +1,103 @@
+# Concept types for the wiki. This is the single place to add or change types.
+#
+#   <type>:                    value of the OKF `type` frontmatter key
+#     label:                   (optional) section heading in index.md
+#     folder:                  where pages of this type live, relative to the bundle root
+#     description:             shown to agents in get_wiki_guide / tool errors
+#     managed: true            (optional) pages are created by the server only, never by write_concept
+#     written_by:              (optional, managed types) who writes them, shown to agents
+#     private: true            (optional) pages of this type are private by default: only assistants
+#                              granted wiki:private see them (a write may still say private: false)
+#
+# Businesses can extend this list (e.g. customer, contract, policy). Renaming a
+# folder later requires moving the existing pages (git mv) and re-running lint.
+
+types:
+  person:
+    label: People
+    folder: wiki/people
+    description: A real person — who they are to the owner, shared history, how the owner feels about them, what is going on in their life, role and affiliations.
+  organization:
+    label: Organizations
+    folder: wiki/organizations
+    description: A company, team, institution or community.
+  project:
+    label: Projects
+    folder: wiki/projects
+    description: A bounded effort with a goal, status, people and timeline.
+  concept:
+    label: Concepts
+    folder: wiki/concepts
+    description: An idea, topic, technology or term worth explaining once and linking to.
+  decision:
+    label: Decisions
+    folder: wiki/decisions
+    description: A decision that was made — context, options considered, outcome, date.
+  meeting:
+    label: Meetings
+    folder: wiki/meetings
+    description: A meeting or conversation — date, attendees, notes, decisions, follow-ups.
+  howto:
+    label: How-tos
+    folder: wiki/howtos
+    description: Step-by-step instructions for doing something.
+  owner:
+    label: Owner
+    folder: wiki/owner
+    description: The owner themselves — preferences, background, goals on wiki/owner/profile; personal life, relationships, feelings and values on a second, private page, wiki/owner/personal.
+  life-event:
+    label: Life events
+    folder: wiki/life
+    private: true
+    description: A significant event or period in the owner's personal life — what happened, who was involved, how the owner felt and what they took from it.
+  context:
+    label: Session context
+    folder: context
+    description: What every conversation starts with (start_session) — context/soul (how the brain answers), context/user (the company, its people and clients), context/memory (standing facts and preferences). Keep each page short.
+  reference:
+    label: References
+    folder: wiki/references
+    description: A book, article, paper, tool or website worth remembering, with a summary.
+  source:
+    label: Raw sources
+    folder: raw
+    managed: true
+    written_by: ingest_source and the portal's chat imports
+    description: Immutable raw source material (pasted text, transcripts, articles). Created only via ingest_source.
+  inference:
+    label: Inferences
+    folder: wiki/inferred
+    managed: true
+    written_by: dreams (personal patterns, under wiki/inferred/patterns, by the patterns pass in the portal or an assistant's patterns session)
+    description: A conclusion drawn by a dream from stated facts, or a personal pattern drawn from observations. Not a fact.
+  observation:
+    label: Observations
+    folder: wiki/observations
+    managed: true
+    private: true
+    written_by: the portal's chat processing, or an assistant's observe tools (one page per imported chat)
+    description: What the owner's own messages in one imported chat show about him, with quotes and message numbers. Evidence for personal patterns, not facts.
+  briefing:
+    label: Briefing
+    folder: wiki/briefing
+    managed: true
+    written_by: dreams
+    description: The generated hot-memory briefing loaded at the start of conversations.
+  maintenance-report:
+    label: Maintenance reports
+    folder: wiki/maintenance
+    managed: true
+    written_by: the nightly lint and dreams
+    description: Automatically generated maintenance report (nightly lint).
+  guide:
+    label: Guides
+    folder: .
+    managed: true
+    written_by: the owner
+    description: Bundle-level guidance documents (README.md, AGENTS.md).
+  proposal:
+    label: Proposals
+    folder: proposals
+    managed: true
+    written_by: the server, when the trust policy requires owner review
+    description: A pending change awaiting owner review (created when the trust policy requires it).

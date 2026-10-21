@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, callout, stepper %}
+{% block title %}Import chats{% endblock %}
+{# While importing or processing, the page reloads itself every 3 s: progress without JS. #}
+{% block head %}{% if running or processing %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+
+{% macro batch_block() %}
+<div class="process batch">
+{% if not batch_ready %}
+<p class="hint">Batch processing needs the LiteLLM key in the portal (<code>LITELLM_MASTER_KEY</code>): run <code>make up</code>. Meanwhile, you can process in LibreChat (below).</p>
+{% elif not models and not other_models %}
+<p class="hint">No model is available yet: add a provider key on the <a href="/keys">API keys</a> page.</p>
+{% elif unprocessed == 0 and not imported %}
+<p>No conversations imported yet: upload an export first.</p>
+{% elif not can_change %}
+<p>Processing needs your password from the last few minutes.</p>
+<div class="actions"><a class="button primary" href="/reauth?next=/import">{{ icon("lock") }}Confirm your password</a></div>
+{% else %}
+<p>Reads each transcript once and files what you said or accepted: dated, cited, linked to the pages it mentions, and as drafts for your review. It works through several conversations at a time and carries on if you leave this page.</p>
+{% if unprocessed == 0 %}<p>Every imported conversation has been processed. You can process them all again, for example with another model.</p>{% endif %}
+<form method="post" action="/import/process">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset class="scope">
+    <legend>Which conversations</legend>
+    <label class="check"><input type="radio" name="scope" value="new"{% if unprocessed != 0 %} checked{% else %} disabled{% endif %}>Not processed yet{% if unprocessed is not none %} <span class="num">({{ unprocessed }})</span>{% endif %}</label>
+    {% if rerun %}<label class="check"><input type="radio" name="scope" value="older">Not processed yet, and those filed before the current filing rules <span class="num">({{ unprocessed + rerun }})</span></label>{% endif %}
+    <label class="check"><input type="radio" name="scope" value="all"{% if unprocessed == 0 %} checked{% endif %}>All imported conversations, again{% if imported %} <span class="num">({{ imported }})</span>{% endif %}</label>
+    <p class="hint">Processing a conversation again replaces what it added to pages you have not reviewed yet. Pages you have reviewed are not edited; they are flagged for review again.</p>
+  </fieldset>
+  <label class="check"><input type="checkbox" name="observe" value="1" checked>Also note observations about you for <a href="/patterns">personal patterns</a></label>
+  <p class="hint">One extra model call per chat, with the same model, for chats not observed yet. The observations stay private and are never filed as facts.</p>
+  <div class="row">
+    <select name="model" aria-label="Model">
+      {% if models %}<optgroup label="Recommended: Second Brain presets">{% for model, label in models %}<option value="{{ model }}"{% if model == batch_model %} selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>{% endif %}
+      {% if other_models %}<optgroup label="All models">{% for model in other_models %}<option value="{{ model }}"{% if model == batch_model %} selected{% endif %}>{{ model }}</option>{% endfor %}</optgroup>{% endif %}
+    </select>
+    <button type="submit" class="button primary">Process</button>
+  </div>
+</form>
+{% endif %}
+</div>
+{% endmacro %}
+
+{% macro process_status() %}
+<div class="process-status" aria-live="polite">
+{% if processing %}
+  <h3>Processing…</h3>
+  <div class="progress-block">
+    <progress max="{{ pjob.total or 1 }}" value="{{ pjob.handled }}" aria-describedby="process-progress">{{ pjob.handled }} of {{ pjob.total }}</progress>
+    <p class="progress-text" id="process-progress"><span><strong>{{ pjob.handled }}</strong> of {{ pjob.total }} conversations</span><span>{{ "{:,}".format(pjob.input_tokens) }} tokens read</span></p>
+  </div>
+  <p class="hint">With {{ pjob.model }}. This page refreshes by itself; you can also leave it.</p>
+  <form method="post" action="/import/process/cancel" class="actions">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="button quiet">Stop</button>
+  </form>
+{% else %}
+  <h3>{% if pjob.error %}Processing stopped{% elif pjob.cancelled %}Processing cancelled{% else %}Processing finished{% endif %}</h3>
+  {% if pjob.error %}{% call callout("bad", icon_name="alert") %}<p class="err">{{ pjob.error }}</p>{% endcall %}
+  {% elif pjob.total == 0 %}{% call callout("", icon_name="check") %}<p>There was nothing to process.</p>{% endcall %}
+  {% else %}{% call callout("ok", icon_name="check") %}<p>New pages are drafts; pages that got additions are flagged. Review them under <a href="/wiki/drafts">Drafts</a>.</p>{% endcall %}{% endif %}
+  <dl class="stats">
+    <div class="stat is-key"><dt>Conversations filed</dt><dd>{{ pjob.done }}</dd></div>
+    <div class="stat"><dt>Nothing to file</dt><dd>{{ pjob.skipped }}</dd></div>
+    {% if pjob.failed %}<div class="stat is-bad"><dt>Failed, offered again next time</dt><dd class="err">{{ pjob.failed }}</dd></div>{% endif %}
+    <div class="stat"><dt>Pages created</dt><dd>{{ pjob.created }}</dd></div>
+    <div class="stat"><dt>Pages added to</dt><dd>{{ pjob.updated }}</dd></div>
+  </dl>
+  <dl class="meta">
+    <dt>Left out</dt><dd>{{ pjob.dropped }} claim{{ "" if pjob.dropped == 1 else "s" }} only the assistant made</dd>
+    {% if pjob.private %}<dt>Private</dt><dd>{{ pjob.private }} page{{ "" if pjob.private == 1 else "s" }} about your personal life, marked private</dd>{% endif %}
+    {% if pjob.observe %}<dt>Observations</dt><dd>{{ pjob.observed }} chat{{ "" if pjob.observed == 1 else "s" }} observed for <a href="/patterns">personal patterns</a>{% if pjob.observe_failed %}; {{ pjob.observe_failed }} not, left for the backfill there{% endif %}</dd>{% endif %}
+    <dt>Model</dt><dd>{{ pjob.model }}: {{ pjob.calls }} call{{ "" if pjob.calls == 1 else "s" }}, {{ "{:,}".format(pjob.input_tokens) }} tokens in, {{ "{:,}".format(pjob.output_tokens) }} out (costs on <a href="/usage">Usage</a>)</dd>
+    <dt>Time</dt><dd>{{ pjob.seconds // 60 }} min {{ pjob.seconds % 60 }} s</dd>
+  </dl>
+  <form method="post" action="/import/discard" class="actions">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="button">Done</button>
+  </form>
+{% endif %}
+</div>
+{% endmacro %}
+
+{% macro librechat_block() %}
+<details class="help">
+  <summary>{{ icon("chevron") }}Or process in LibreChat, one chat at a time</summary>
+  <div class="help-body">
+    {{ process_block(process, "An assistant works through the transcripts in a chat you can follow and steer.") }}
+    {% if rerun %}
+    <h3>Re-process older imports</h3>
+    {% set lead = (rerun ~ " imported conversation was" if rerun == 1 else rerun ~ " imported conversations were") ~ " filed before the wiki's current filing rules: only what you said or accepted, dated, and reviewed as drafts." %}
+    {{ process_block(rerun_process, lead, "rerun", "Re-process", "checks the pages written from them against the current rules and marks them as drafts for your review", "Re-process my imported chats that were filed before the wiki's current filing playbook.") }}
+    {% endif %}
+  </div>
+</details>
+{% endmacro %}
+
+{% macro process_block(options, lead, id="process", action="Process", explain="reads the transcripts and writes wiki pages from them", ask="Read the imported chats in raw/chats/ and update the wiki from them.") %}
+<div class="process">
+{% if options %}
+{% set first = options[0] %}
+<p>{{ lead }} This opens a new chat in LibreChat that {{ explain }}, about five per chat. You can follow along there.</p>
+<div class="row">
+  <select id="{{ id }}-model" hidden data-process aria-label="Model">
+    {% for o in options %}<option value="{{ o.url }}">{{ o.label }}</option>{% endfor %}
+  </select>
+  <a id="{{ id }}-link" class="button primary" href="{{ first.url }}" target="_blank" rel="noopener noreferrer" data-process-link>{{ action }} in LibreChat with <span data-process-label>{{ first.label }}</span></a>
+</div>
+{% if options | length > 1 %}
+<noscript><p class="hint">Or with: {% for o in options[1:] %}<a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">{{ o.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p></noscript>
+{% endif %}
+{% else %}
+<p>{{ lead }} Ask an assistant connected to the wiki, for example: <em>“{{ ask }}”</em></p>
+<p class="hint">No LibreChat preset with the wiki tools is available yet: add a provider key on the <a href="/keys">API keys</a> page.</p>
+{% endif %}
+</div>
+{% endmacro %}
+
+{% macro what_is_stored() %}
+<section class="section" aria-labelledby="stored-title">
+  <h2 id="stored-title">What gets stored</h2>
+  <div class="storage">
+    <div class="yes">
+      <h3>{{ icon("check") }}After you confirm the preview</h3>
+      <ul>
+        <li>One clean transcript per new conversation, as a raw source under <code>raw/chats/</code>.</li>
+        <li>Secrets such as API keys, tokens and passwords are replaced by <code>[secret removed]</code>.</li>
+        <li>Conversations imported before stay as they are: never changed, never duplicated. If one has new messages since, only those are added, as a continuation.</li>
+      </ul>
+    </div>
+    <div class="no">
+      <h3>{{ icon("x-circle") }}Never stored</h3>
+      <ul>
+        <li>The export file itself: it is deleted as soon as it has been read.</li>
+        <li>Thinking, tool output and images. Tool calls and images become short placeholders.</li>
+        <li>Projects, and the branches of an edited ChatGPT conversation you did not keep.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endmacro %}
+
+{% block content %}
+{% if job and running %}{% set step = 3 %}{% elif job %}{% set step = 4 %}{% elif preview %}{% set step = 2 %}{% else %}{% set step = 1 %}{% endif %}
+<header class="page-header">
+  <h1>Import chats</h1>
+  <p class="lead">Add your past Claude.ai and ChatGPT conversations to the wiki. Each one becomes a raw source: a clean transcript that assistants can read and turn into wiki pages.</p>
+</header>
+
+{{ stepper(["Upload", "Preview", "Import", "Done"], step, "Import steps", failed=(job and job.done and job.error), finished=(job and job.done)) }}
+
+{% if job %}
+{# ---------------------------------------------------------------- 3 · importing / 4 · done #}
+<section class="panel" aria-labelledby="job-title">
+  {% if running %}
+  <h2 id="job-title">Importing…</h2>
+  <div class="progress-block">
+    <progress max="{{ job.parts }}" value="{{ job.sent }}" aria-labelledby="job-title" aria-describedby="job-progress">{{ job.sent }} of {{ job.parts }}</progress>
+    <p class="progress-text" id="job-progress"><span><strong>{{ job.sent }}</strong> of {{ job.parts }} transcript parts stored</span><span>{{ (100 * job.sent / job.parts) | round | int if job.parts else 0 }}%</span></p>
+  </div>
+  <p class="hint">{{ job.conversations }} conversation{{ "" if job.conversations == 1 else "s" }}. This page refreshes by itself every few seconds; you can also leave it, the import carries on.</p>
+  {% else %}
+  <h2 id="job-title">{% if job.error %}Import stopped{% else %}Import finished{% endif %}</h2>
+  {% if job.error %}
+  {% call callout("bad", icon_name="alert") %}<p class="err">{{ job.error }}</p><p>What was stored so far stays; importing the same export again adds only what is missing.</p>{% endcall %}
+  {% else %}
+  {% call callout("ok", icon_name="check") %}<p>The transcripts are stored as raw sources. Nothing else in the wiki was changed.</p>{% endcall %}
+  {% endif %}
+  <dl class="stats">
+    <div class="stat is-key"><dt>Conversations added</dt><dd>{{ job.created | length }}</dd></div>
+    {% if job.continued %}<div class="stat"><dt>Conversations continued</dt><dd>{{ job.continued | length }}</dd></div>{% endif %}
+    {% if job.existing %}<div class="stat"><dt>Parts already there</dt><dd>{{ job.existing }}</dd></div>{% endif %}
+    {% if job.rejected %}<div class="stat is-bad"><dt>Parts refused by the wiki</dt><dd class="err">{{ job.rejected }}</dd></div>{% endif %}
+  </dl>
+  <p>They are listed under <a href="/wiki/type/source">Raw sources</a> in the wiki. Pages an assistant writes from them are drafts you can review under <a href="/wiki/drafts">Drafts</a>.</p>
+  {% if not job.error and (job.created or job.continued) %}
+  <div class="result-next">
+    <h3>Next: turn them into wiki pages</h3>
+    {{ batch_block() }}
+    {{ librechat_block() }}
+  </div>
+  {% endif %}
+  <form method="post" action="/import/discard" class="actions result-next">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="button">{{ icon("upload") }}Import another export</button>
+  </form>
+  {% endif %}
+</section>
+
+{% elif preview %}
+{# ---------------------------------------------------------------- 2 · preview #}
+{% set n_new = preview.count("new") %}
+{% set n_upd = preview.count("updated") %}
+{% set n_old = preview.count("imported") %}
+{% set n_bad = preview.count("rejected") %}
+<section class="panel" aria-labelledby="preview-title">
+  <div class="panel-head">
+    <h2 id="preview-title">Preview: {{ preview.filename }}</h2>
+    <span class="hint">{{ preview.format }} export{% if preview.first %}, {{ preview.first }} to {{ preview.last }}{% endif %}</span>
+  </div>
+  {% call callout("info", icon_name="info") %}<p><strong>Nothing has been stored yet.</strong> Check the list below, then import the new conversations or discard this preview.</p>{% endcall %}
+  <dl class="stats">
+    <div class="stat is-key{{ ' is-zero' if not n_new else '' }}"><dt>New</dt><dd>{{ n_new }}</dd></div>
+    {% if n_upd %}<div class="stat"><dt>Updated since</dt><dd>{{ n_upd }}</dd></div>{% endif %}
+    <div class="stat{{ ' is-zero' if not n_old else '' }}"><dt>Already imported</dt><dd>{{ n_old }}</dd></div>
+    {% if n_bad %}<div class="stat is-bad"><dt>Cannot be imported</dt><dd class="err">{{ n_bad }}</dd></div>{% endif %}
+    <div class="stat"><dt>Conversations in the export</dt><dd>{{ preview.rows | length }}</dd></div>
+  </dl>
+  <dl class="meta">
+    <dt>Secrets removed</dt><dd>{% if preview.redactions %}{% for kind, n in preview.redactions.most_common() %}{{ n }} {{ kind }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none found{% endif %}</dd>
+    {% if preview.truncated %}<dt>Shortened</dt><dd>{{ preview.truncated }} very long code blocks or attachments</dd>{% endif %}
+    {% if preview.projects %}<dt>Projects</dt><dd>{{ preview.projects }} (not imported: only conversations are)</dd>{% endif %}
+    {% if preview.warnings %}<dt>Notes</dt><dd><ul class="plain">{% for kind, n in preview.warnings.most_common() %}<li>{{ n }} × {{ kind }}</li>{% endfor %}</ul></dd>{% endif %}
+  </dl>
+  {% if can_change and (n_new or n_upd) %}
+  <div class="actions stack-mobile">
+    <form method="post" action="/import/start">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="button primary">Import {% if n_new %}{{ n_new }} new{% endif %}{% if n_new and n_upd %} and {% endif %}{% if n_upd %}{{ n_upd }} updated{% endif %} conversation{{ "" if n_new + n_upd == 1 else "s" }}</button>
+    </form>
+    <form method="post" action="/import/discard">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="button quiet">Discard</button>
+    </form>
+  </div>
+  {% elif not can_change %}
+  {% call callout("warn", "Confirm your password to import", "lock") %}
+  <p>Importing needs your password from the last few minutes. This preview is kept while you do.</p>
+  <div class="actions">
+    <a class="button primary" href="/reauth?next=/import">Confirm your password</a>
+    <form method="post" action="/import/discard">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="button quiet">Discard</button>
+    </form>
+  </div>
+  {% endcall %}
+  {% else %}
+  {% call callout("", "Nothing new to import", "check") %}
+  <p>Every conversation in this export is already in the wiki{% if n_bad %} or cannot be imported{% endif %}.</p>
+  <div class="actions">
+    <form method="post" action="/import/discard">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="button">Discard and upload another export</button>
+    </form>
+  </div>
+  {% endcall %}
+  {% endif %}
+</section>
+
+<section class="section conversations" aria-labelledby="conversations-title">
+  <h2 id="conversations-title">Conversations</h2>
+  <fieldset class="filter">
+    <legend>Show</legend>
+    <input type="radio" name="show" id="show-all" checked><label for="show-all">All <span class="num">{{ rows | length }}</span></label>
+    {% if n_new %}<input type="radio" name="show" id="show-new"><label for="show-new">New <span class="num">{{ n_new }}</span></label>{% endif %}
+    {% if n_upd %}<input type="radio" name="show" id="show-updated"><label for="show-updated">Updated <span class="num">{{ n_upd }}</span></label>{% endif %}
+    {% if n_old %}<input type="radio" name="show" id="show-imported"><label for="show-imported">Already imported <span class="num">{{ n_old }}</span></label>{% endif %}
+    {% if n_bad %}<input type="radio" name="show" id="show-rejected"><label for="show-rejected">Cannot import <span class="num">{{ n_bad }}</span></label>{% endif %}
+  </fieldset>
+  <div class="table-wrap tall" tabindex="0" role="region" aria-labelledby="conversations-title">
+    <table class="data reflow">
+      <thead><tr><th scope="col">Title</th><th scope="col">Source</th><th scope="col">Started</th><th scope="col" class="num">Messages</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr data-status="{{ row.status }}">
+        <td class="cell-main conv-title">{{ row.title }}</td>
+        <td data-label="Source">{{ row.source }}</td>
+        <td data-label="Started">{{ row.started or "unknown" }}</td>
+        <td data-label="Messages" class="num">{{ row.messages }}{% if row.parts > 1 %} <span class="muted">({{ row.parts }} parts)</span>{% endif %}</td>
+        <td data-label="Status">{% if row.status == "new" %}<span class="pill accent">new</span>{% elif row.status == "updated" %}<span class="pill accent">updated</span><span class="cell-sub">{{ row.new_messages }} new message{{ "" if row.new_messages == 1 else "s" }}</span>{% elif row.status == "imported" %}<span class="pill">already imported</span>{% if row.problem %}<span class="cell-sub">{{ row.problem }}</span>{% endif %}{% else %}<span class="pill down">cannot import</span><span class="cell-sub">{{ row.problem }}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if preview.rows | length > rows | length %}<p class="hint">And {{ preview.rows | length - rows | length }} more, not listed here. They are imported too.</p>{% endif %}
+</section>
+
+{% elif can_change %}
+{# ---------------------------------------------------------------- 1 · upload #}
+<section class="panel" aria-labelledby="upload-title">
+  <h2 id="upload-title">Upload an export</h2>
+  <p>Uploading only shows a preview. <strong>Nothing is stored until you confirm it.</strong></p>
+  <form method="post" action="/import/upload" enctype="multipart/form-data" data-upload>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field">
+      <label for="export">Export file</label>
+      <p class="hint" id="export-hint">The zip from Claude.ai or ChatGPT, or the <code>conversations.json</code> inside it. Up to {{ max_mb }} MB.</p>
+      <div class="dropzone-wrap">
+      <p class="dropzone-prompt" aria-hidden="true">{{ icon("upload") }}Drop the export here, or choose it</p>
+      <input id="export" name="export" type="file" class="dropzone" accept=".zip,.json,application/zip,application/json" required aria-describedby="export-hint" data-max-bytes="{{ max_mb * 1024 * 1024 }}">
+      </div>
+      <p class="file-status" data-file-status aria-live="polite"></p>
+    </div>
+    <div class="actions">
+      <button type="submit" class="button primary" data-busy-label="Reading the export…">Upload and preview</button>
+      <span class="hint">Reading a large export can take a minute.</span>
+    </div>
+  </form>
+</section>
+{% else %}
+{# ---------------------------------------------------------------- 1 · upload, locked #}
+<section class="panel" aria-labelledby="locked-title">
+  <h2 id="locked-title">Confirm your password to upload</h2>
+  <p>Uploading and importing need your password from the last few minutes. You won't be asked again for a while after that.</p>
+  <div class="actions"><a class="button primary" href="/reauth?next=/import">{{ icon("lock") }}Confirm your password</a></div>
+</section>
+{% endif %}
+
+{% if not job and not preview %}
+<section class="section" aria-labelledby="process-title">
+  <h2 id="process-title">Turn imported chats into wiki pages</h2>
+  {% if pjob %}
+  {{ process_status() }}
+  {% else %}
+  {% if unprocessed is not none %}<p class="hint">{{ unprocessed }} imported conversation{{ " is" if unprocessed == 1 else "s are" }} not processed yet.</p>{% endif %}
+  {{ batch_block() }}
+  {{ librechat_block() }}
+  {% endif %}
+</section>
+{{ what_is_stored() }}
+{% endif %}
+
+<details class="help"{% if not job and not preview %} open{% endif %}>
+  <summary>{{ icon("chevron") }}Getting your export</summary>
+  <div class="help-body">
+    <ul>
+      <li><strong>Claude.ai:</strong> Settings → Privacy → Export data. The download link arrives by email.</li>
+      <li><strong>ChatGPT:</strong> Settings → Data controls → Export data, also delivered by email.</li>
+    </ul>
+    <p>Thinking, tool output and images are left out; tool calls and images become short placeholders. Only the chosen branch of an edited ChatGPT conversation is kept. A ChatGPT zip is mostly images: if it is too large, upload the <code>conversations.json</code> inside it.</p>
+  </div>
+</details>
+{% endblock %}

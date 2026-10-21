@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon %}
+{% macro pill(key) %}
+{% set st = statuses.get(key) %}
+{% if st %}<span class="pill {{ st.state }}">{{ st.state }}</span> <span>{{ st.detail }}</span>{% endif %}
+{% endmacro %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div class="row">
+    <h1>Dashboard</h1>
+    <a class="button" href="/dashboard?refresh=1">{{ icon("refresh") }}Check again</a>
+  </div>
+  <p class="lead">Every address of your stack, and whether it answers when checked from inside Docker. For the full edge check, run <code>make access-status</code> on the server.</p>
+  <dl class="facts">
+    <div><dt>UI access mode</dt><dd><code>{{ ui_mode }}</code></dd></div>
+    <div><dt>MCP exposure mode</dt><dd><code>{{ mcp_mode }}</code></dd></div>
+    <div><dt>Last checked</dt><dd>{{ age }} s ago</dd></div>
+    <div><dt>Spent this month</dt><dd class="num"><a href="/usage">{{ usage.currency.money(usage.this_month.cost) }}</a></dd></div>
+  </dl>
+</header>
+
+<section class="section" aria-labelledby="endpoints-title">
+  <h2 id="endpoints-title">Endpoints</h2>
+  <ul class="endpoints panel flush">
+    {% for e in endpoints %}
+    <li>
+      <div>
+        <h3 class="endpoint-title">{{ e.title }}</h3>
+        <p class="endpoint-desc">{{ e.description }}</p>
+      </div>
+      <div>
+        <ul class="endpoint-links">
+          {% for l in e.links %}
+          <li>
+            <div class="link-label">{{ l.label }}</div>
+            <div class="url-row">
+              <span class="url">{% if l.open %}<a href="{{ l.url }}" rel="noopener noreferrer" target="_blank">{{ l.url }}</a>{% else %}{{ l.url }}{% endif %}</span>
+              {% if l.copy %}<button type="button" class="button small copy" data-copy="{{ l.url }}">{{ icon("copy") }}<span data-copy-label>Copy</span></button>{% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% for key in e.probes %}<div class="status-row">{{ pill(key) }}</div>{% endfor %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% if mcp_url %}
+<section class="section" aria-labelledby="connect-title">
+  <h2 id="connect-title">Connect your AI apps</h2>
+  <div class="panel">
+    <dl class="meta steps-inline">
+      <dt>Claude.ai</dt><dd>Customize › Connectors › Add custom connector › paste the connector URL › Add › sign in</dd>
+      <dt>ChatGPT</dt><dd>Settings › Apps &amp; Connectors › Advanced › Developer mode › Create › URL, OAuth › sign in</dd>
+      <dt>Le Chat</dt><dd>Connectors › Add connector › Custom MCP connector › paste the URL › sign in</dd>
+    </dl>
+  </div>
+</section>
+{% endif %}
+
+<section class="section" aria-labelledby="services-title">
+  <h2 id="services-title">Services</h2>
+  <div class="table-wrap"><table class="data reflow">
+    <thead><tr><th scope="col">Service</th><th scope="col">Address (Docker network)</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+    {% for label, key, where in services %}
+    <tr><td class="cell-main">{{ label }}</td><td data-label="Address"><code>{{ where }}</code></td><td data-label="Status">{{ pill(key) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

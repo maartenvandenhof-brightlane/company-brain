@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon %}
+{% block title %}Dream {{ dream.id }}{% endblock %}
+{% block head %}{% if dream.in_assistant and dream.running %}<noscript><meta http-equiv="refresh" content="30"></noscript>{% endif %}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Dream {{ dream.id }}{% if dream.dry_run %} (dry run){% endif %}</h1>
+  <p class="lead">Started {{ dream.started[:16] | replace("T", " ") }} UTC ({{ dream.trigger }}){% if dream.finished %}, finished {{ dream.finished[:16] | replace("T", " ") }}{% else %}, still running{% endif %}. Base commit <code>{{ dream.base_sha or "?" }}</code>. {% if dream.client %}In {{ client }}.{% else %}Cost €{{ "%.4f" | format(dream.cost_eur) }}.{% endif %} <a href="/dreams">All dreams</a></p>
+</header>
+{% if dream.error %}<p class="callout bad">{{ dream.error }}</p>{% endif %}
+{% if dream.in_assistant and not dream.error %}
+<section class="panel" id="dream-session" aria-labelledby="session-title" data-status="/dreams/{{ dream.id }}/session"{% if dream.running %} data-running{% endif %}>
+  <div class="panel-head"><h2 id="session-title">The session in {{ client }}</h2></div>
+  {% if state_error %}<p class="callout warn">The session's state is not known: {{ state_error }}.</p>{% endif %}
+  {% if state and state.status == "open" %}
+  <p>Tell {{ client }}:</p>
+  <p class="row"><code>{{ tell }}</code> <button type="button" class="button small copy" data-copy="{{ tell }}">{{ icon("copy") }}<span data-copy-label>Copy</span></button></p>
+  <p class="hint">Or choose the Second Brain app's <code>{{ "run-patterns" if dream.trigger == "patterns" else "run-dream" }}</code> prompt and give it dream {{ dream.id }}. The session is open until {{ when(state.expires) }}; after that nothing more is written, and the log says it expired.</p>
+  {% endif %}
+  {% if state %}
+  <ul class="plain">
+    <li>Status: <strong data-session-status>{% if state.status == "finished" %}ended {{ when(state.finished) }} ({{ state.ended }}){% elif state.status == "expired" %}expired{% else %}open, waiting for {{ client }}{% endif %}</strong></li>
+    <li>Passes done: <span data-session-done>{{ state.passes_done | list | join(", ") or "none yet" }}</span></li>
+    <li>Passes to do: <span data-session-todo>{{ state.passes_to_do | join(", ") or "none" }}</span></li>
+  </ul>
+  {% endif %}
+  {% if dream.running %}
+  <form method="post" action="/dreams/{{ dream.id }}/end">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="button danger">End session</button>
+  </form>
+  <p class="hint">Ending the session writes the dream log now; the passes not done yet are left out.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% if dream.log_page %}<p><a class="button" href="/wiki/page/{{ dream.log_page }}">Open the dream log</a></p>{% endif %}
+{% if dream.commits %}
+<section class="section"><h2>Commits</h2><ul>
+  {% for c in dream.commits %}<li><code>{{ c.sha[:12] }}</code> {{ c.pass }}: {{ (c.pages or []) | join(", ") }}</li>{% endfor %}
+</ul></section>
+{% endif %}
+{% if dream.proposals %}
+<section class="section"><h2>Proposals</h2><ul>
+  {% for p in dream.proposals %}<li><a href="/wiki/page/{{ p.id }}">{{ p.summary }}</a> ({{ p.pass }}){% if p.speculative %} <span class="pill unknown">speculative</span>{% endif %}</li>{% endfor %}
+</ul></section>
+{% endif %}
+{% if dream.dry_run %}
+<section class="section"><h2>The log it would have written</h2>
+  {% if log_text %}<pre class="dream-log">{{ log_text }}</pre>{% else %}<p class="muted">Nothing yet.</p>{% endif %}
+</section>
+<section class="section"><h2>Commits it would have made</h2>
+  {% for c in would_commits %}<h3>{{ c.pass }}: {{ c.reason }}</h3><pre class="dream-log">{{ as_json(c.operations) }}</pre>{% else %}<p class="muted">None.</p>{% endfor %}
+</section>
+<section class="section"><h2>Proposals it would have made</h2>
+  {% for p in would_proposals %}<h3>{{ p.pass }}: {{ p.summary }}{% if p.speculative %} <span class="pill unknown">speculative</span>{% endif %}</h3><pre class="dream-log">{{ as_json(p.operations) }}</pre>{% else %}<p class="muted">None.</p>{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

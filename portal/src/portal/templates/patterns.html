@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% from "macros.html" import callout, empty, stepper, icon %}
+{% block title %}Patterns{% endblock %}
+{# While observing or reassessing, patterns.js follows the run; without JS the page reloads itself every 3 s. #}
+{% block head %}{% if running %}<noscript><meta http-equiv="refresh" content="3"></noscript>{% endif %}{% endblock %}
+
+{% macro access(client) %}{% if private[client] %}{{ clients[client] }} sees private pages.{% elif private[client] is none %}{{ clients[client] }} has not connected yet (or its access is not known).{% else %}{{ clients[client] }} has no private access: turn it on under <a href="/apps">Connected apps</a>, or it is refused.{% endif %}{% endmacro %}
+
+{% macro access_list() %}
+<ul class="plain hint keep-access">{% for c in clients %}<li>{{ access(c) }}</li>{% endfor %}</ul>
+{% endmacro %}
+
+{# A button that is off for a reason says it next to itself: off() in the button, why() after it. #}
+{% macro off(id, reason) %}{% if reason %} disabled aria-describedby="{{ id }}"{% endif %}{% endmacro %}
+{% macro why(id, reason) %}{% if reason %}<span class="why-not" id="{{ id }}">{{ reason }}</span>{% endif %}{% endmacro %}
+
+{% macro plural(n, word) %}{{ n }} {{ word }}{{ "" if n == 1 else "s" }}{% endmacro %}
+
+{# The quote first; where it is from on one quiet line (what was observed in its title). #}
+{% macro evidence(items) %}
+<ul class="pattern-evidence">
+  {% for e in items %}
+  <li>
+    <p class="pattern-quote"><q>{{ e.quote }}</q></p>
+    <p class="pattern-source" title="{{ e.text }} ({{ e.basis }} {{ e.kind }}, {{ e.context }})"><a href="/wiki/page/{{ e.source }}">{{ e.source.rsplit("/", 1)[-1] | replace("-", " ") }}, message {{ e.msg }}</a>, <time>{{ e.date or "undated" }}</time>, <a href="/wiki/page/{{ e.page }}">observation</a></p>
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro answer_line(f) %}{{ answered.get(f.verdict, f.verdict) }} on <time>{{ f.at[:10] }}</time>{% if f.note %}: <q>{{ f.note }}</q>{% else %}.{% endif %}{% endmacro %}
+
+{# A pattern: the hypothesis, how sure it is, why, and the owner's answer. #}
+{% macro pattern_card(p) %}
+{% set pid = p.id | replace("/", "-") %}
+{% set level = {"low": 1, "medium": 2, "high": 3}.get(p.confidence, 1) %}
+{% set latest = p.feedback[-1] if p.feedback else none %}
+<article class="pattern" id="{{ pid }}" data-status="{{ p.status }}" data-valence="{{ p.valence }}" aria-labelledby="{{ pid }}-h">
+  <h3 class="pattern-hypothesis" id="{{ pid }}-h">{{ p.hypothesis }}</h3>
+  <p class="pattern-sure">
+    <span class="scale" data-level="{{ level }}" aria-hidden="true"><span></span><span></span><span></span></span>
+    <strong class="scale-label">{{ (p.confidence or "low") | capitalize }} confidence</strong>
+    <span>{{ plural(p.independent_events, "independent moment") }} in {{ plural(p.chats, "chat") }}{% if p.span_days %} over {{ plural(p.span_days, "day") }}{% endif %}</span>
+  </p>
+  {% if p.contexts or p.span == "tendency" %}
+  <p class="pattern-tags">{% for c in p.contexts %}<span class="pill plain">{{ c }}</span> {% endfor %}{% if p.span == "tendency" %}<span class="pill plain">recurs over time</span>{% endif %}</p>
+  {% endif %}
+  {% if p.model_hypothesis %}<p class="hint pattern-reworded">Your wording. Originally: {{ p.model_hypothesis }}</p>{% endif %}
+
+  <details class="pattern-why">
+    <summary>{{ icon("chevron") }}Why this might be true ({{ p.supports | length }}) and what speaks against it ({{ p.counterevidence | length }})</summary>
+    <div class="pattern-why-body">
+      <h4>Supporting</h4>
+      {{ evidence(p.supports) }}
+      <h4>Against it</h4>
+      {% if p.counterevidence %}{{ evidence(p.counterevidence) }}{% else %}<p class="hint">None found, which does not prove it.</p>{% endif %}
+      {% if p.alternatives %}
+      <h4>What else could explain it</h4>
+      <ul class="pattern-alternatives">{% for a in p.alternatives %}<li>{{ a }}</li>{% endfor %}</ul>
+      {% endif %}
+      <h4>How sure, and why</h4>
+      <p class="pattern-rationale">{{ p.confidence_rationale }}{% if p.reassess_after %} Looked at again after <time>{{ p.reassess_after }}</time>.{% endif %}</p>
+      {% if p.feedback | length > 1 %}
+      <h4>Your earlier answers</h4>
+      <ul class="pattern-history">{% for f in p.feedback[:-1] | reverse %}<li>{{ answer_line(f) }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+  </details>
+
+  {% if p.status != "deprecated" %}
+  <form class="pattern-answer" method="post" action="/patterns/feedback">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="id" value="{{ p.id }}">
+    <fieldset>
+      <legend>Does this sound like you?</legend>
+      {% if latest %}<p class="pattern-state">{{ answer_line(latest) }}</p>{% endif %}
+      <div class="pattern-verdicts">
+        {% for value, label in verdicts.items() %}
+        {% set on = latest and latest.verdict == value %}
+        <button type="submit" class="button small{{ ' is-on' if on else '' }}" name="verdict" value="{{ value }}" aria-pressed="{{ 'true' if on else 'false' }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <details class="pattern-reword">
+      <summary>{{ icon("chevron") }}Add a note or reword it</summary>
+      <label for="note-{{ pid }}">Note, or the pattern in your own words</label>
+      <textarea id="note-{{ pid }}" name="note" rows="3" maxlength="1000"></textarea>
+      <div class="row">
+        <button type="submit" class="button small" name="verdict" value="correct">Save my wording</button>
+        <p class="hint">A note goes with whichever answer you choose.</p>
+      </div>
+    </details>
+  </form>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% block content %}
+<header class="page-header" id="coverage">
+  <h1>Patterns</h1>
+  <p class="lead">Hypotheses about how you tend to act, decide and feel, drawn from your own messages in chats with assistants. They are never facts or diagnoses. They are private: only apps you allow can read them. <a href="/docs/patterns">How patterns work</a></p>
+  {% if coverage and coverage.chats %}
+  <p class="pattern-coverage">Based on {{ plural(coverage.chats, "chat") }} you had with assistants, <time>{{ coverage["from"] or "undated" }}</time> to <time>{{ coverage["to"] or "undated" }}</time>.{% if counts.pending %} {{ plural(counts.pending, "chat") }} not observed yet.{% endif %}</p>
+  {% if coverage.skew %}
+  <ul class="pattern-caveats hint">{% for s in coverage.skew %}<li>{{ s[:1] | upper }}{{ s[1:] }}.</li>{% endfor %}</ul>
+  {% endif %}
+  {% elif counts.observed is not none %}
+  <p class="pattern-coverage">{{ plural(counts.observed, "chat") }} observed so far{% if counts.pending %}, {{ counts.pending }} not yet{% endif %}.</p>
+  {% endif %}
+</header>
+
+{% if problem %}
+{% call callout("warn", "Not everything could be read", "alert") %}<p>Not shown: {{ problem }}.</p>{% endcall %}
+{% endif %}
+
+<div class="pattern-groups" id="patterns">
+  {% set shown = namespace(any=false) %}
+  {% for key, title, items in groups if items %}
+  {% set shown.any = true %}
+  <section class="pattern-group" id="{{ key }}" aria-labelledby="{{ key }}-title">
+    <h2 class="section-title" id="{{ key }}-title">{{ title }}</h2>
+    {% if key == "disputed" %}<p class="hint">Assistants still see these, marked as disputed by you and with low confidence.</p>{% endif %}
+    <div class="pattern-list">
+      {% for p in items %}{{ pattern_card(p) }}{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  {% if not shown.any %}
+  {% call empty("No patterns yet") %}
+  <p>Observe your chats first, then reassess. With few chats observed, patterns stay tentative, and they can only be as broad as what you talk about with assistants.</p>
+  {% endcall %}
+  {% endif %}
+  {% if retired %}
+  <details class="pattern-retired" id="retired">
+    <summary>{{ icon("chevron") }}Retired ({{ retired | length }})</summary>
+    <p class="hint">No longer supported by your chats. Assistants do not see these.</p>
+    <ul class="plain">
+      {% for p in retired %}<li id="{{ p.id | replace('/', '-') }}"><span class="pattern-retired-text">{{ p.hypothesis }}</span>{% if p.updated %} <span class="hint">Retired <time>{{ p.updated[:10] }}</time></span>{% endif %}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</div>
+
+<section class="panel keep" id="keep" aria-labelledby="keep-title"{% if running %} data-status="/patterns/status" data-running{% endif %}>
+  <h2 id="keep-title">Keep patterns current</h2>
+  <ol class="keep-steps">
+    <li class="keep-step" id="observe">
+      <h3>Observe chats</h3>
+      <p class="hint">Each imported chat is read once for what your own messages show about you, into a private observation page with quotes and message numbers. Processing chats on the <a href="/import">Import</a> page can do this as it files them; here you catch up the rest.</p>
+      <dl class="stats">
+        <div class="stat is-key"><dt>Chats observed</dt><dd>{{ counts.observed if counts.observed is not none else "?" }}</dd></div>
+        <div class="stat"><dt>Not observed yet</dt><dd>{{ counts.pending if counts.pending is not none else "?" }}</dd></div>
+        {% if counts.outdated %}<div class="stat"><dt>Observed by an older version</dt><dd>{{ counts.outdated }}</dd></div>{% endif %}
+      </dl>
+      {% if job %}
+      <div class="process-status">
+        {% if backfilling %}
+        <div class="progress-block" data-backfill>
+          <progress max="{{ job.total or 1 }}" value="{{ job.handled }}" aria-describedby="observe-progress">{{ job.handled }} of {{ job.total }}</progress>
+          <p class="progress-text" id="observe-progress"><span><strong data-handled>{{ job.handled }}</strong> of <span data-total>{{ job.total }}</span> chats</span><span data-cost>€{{ "%.3f" | format(job.cost_eur) }}</span></p>
+        </div>
+        <form method="post" action="/patterns/backfill/cancel" class="actions">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" class="button quiet">Stop</button>
+        </form>
+        {% else %}
+        {% if job.error %}{% call callout("bad", "Observing stopped", "alert") %}<p class="err">{{ job.error }}</p>{% endcall %}
+        {% elif job.cancelled %}{% call callout("", "Observing stopped", "info") %}<p>Stopped on request; start again to go on.</p>{% endcall %}
+        {% endif %}
+        <p class="keep-last">Last run: {{ job.done }} of {{ plural(job.total, "chat") }} observed ({{ job.empty }} with nothing personal){% if job.existing %}, {{ job.existing }} done meanwhile{% endif %}{% if job.failed %}, {{ job.failed }} failed and offered again next time{% endif %}.</p>
+        <p class="hint">{{ job.model }}, {{ plural(job.calls, "call") }}, €{{ "%.3f" | format(job.cost_eur) }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if not backfilling %}
+      <form method="post" action="/patterns/backfill" class="keep-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label class="vh" for="observe-limit">How many chats</label>
+        <select id="observe-limit" name="limit">
+          {% for n in limits %}<option value="{{ n }}"{% if loop.index == 2 %} selected{% endif %}>At most {{ n }} chats</option>{% endfor %}
+        </select>
+        <label class="check"><input type="checkbox" name="outdated" value="1">Also redo chats observed by an older version</label>
+        <div class="row">
+          <button type="submit" class="button primary"{{ off("observe-why", why_not.observe) }}>Observe chats</button>
+          {{ why("observe-why", why_not.observe) }}
+        </div>
+      </form>
+      <p class="hint">Safe to run again: chats already observed are skipped, and a stopped run goes on where it left off. Your chats and wiki pages are never changed. One call per chat to the cheaper model, paid from the dreams budget.</p>
+      {% endif %}
+
+      <div class="keep-alt">
+        <h4>Or observe in Claude.ai or ChatGPT</h4>
+        <p class="hint">The assistant reads each chat with the same instructions, on your subscription instead of the dreams budget. No session needed, and chats observed either way count for both.{% if counts.pending is not none %} {{ plural(counts.pending, "chat") }} to go.{% endif %}</p>
+        <p class="keep-tell"><span>Tell the assistant:</span> <code>{{ observe_tell }}</code> <button type="button" class="button small copy" data-copy="{{ observe_tell }}">{{ icon("copy") }}<span data-copy-label>Copy</span></button></p>
+        <p class="hint">Or choose the Second Brain app's <code>run-observe</code> prompt. It needs an app that can read private pages:</p>
+        {{ access_list() }}
+      </div>
+    </li>
+
+    <li class="keep-step" id="reassess">
+      <h3>Reassess patterns</h3>
+      <p class="hint">Reads a balanced sample of all observations and writes or updates your patterns. One call to the stronger model, paid from the dreams budget. Each run is listed on the <a href="/dreams">Dreams</a> page, where you can undo it.</p>
+      {% if progress %}
+      <div class="ideate{{ ' failed' if progress.error else '' }}" data-reassess>
+        {{ stepper(progress.steps, progress.step, "Reassessing", failed=progress.error != "", finished=progress.finished) }}
+        <p class="progress-text" role="status"><span data-progress-text>{{ progress.text }}</span> <span data-progress-time>{{ progress.seconds }} s</span></p>
+      </div>
+      {% endif %}
+      <form method="post" action="/patterns/reassess" class="row">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="button primary"{{ off("reassess-why", why_not.reassess) }}>Reassess here</button>
+        {{ why("reassess-why", why_not.reassess) }}
+      </form>
+
+      <div class="keep-alt" id="assistant">
+        <h4>Or reassess in Claude.ai or ChatGPT</h4>
+        <p class="hint">The same reassessment with the assistant's model, on your subscription: open a session here, then tell the assistant to run it. The wiki checks and writes the patterns exactly as above, and the run is listed on the <a href="/dreams">Dreams</a> page. A session ends by itself after two hours.</p>
+        {% if in_assistant and (in_assistant.running or state) %}
+        {% set name = client_name(in_assistant) %}
+        <p class="keep-session">{{ what(in_assistant) }} in {{ name }}: <strong>{% if in_assistant.running and state and state.status == "open" %}open, waiting for {{ name }}{% elif state and state.status == "finished" %}ended ({{ state.ended }}){% elif state and state.status == "expired" %}expired{% elif not in_assistant.running %}ended{% else %}not known{% endif %}</strong>{% if in_assistant.log_page %} (<a href="/wiki/page/{{ in_assistant.log_page }}">its log</a>){% endif %}</p>
+        {% if in_assistant.running and state and state.status == "open" %}
+        <p class="keep-tell"><span>Tell {{ name }}:</span> <code>{{ tell }}</code> <button type="button" class="button small copy" data-copy="{{ tell }}">{{ icon("copy") }}<span data-copy-label>Copy</span></button></p>
+        <p class="hint">Or choose the Second Brain app's <code>run-patterns</code> prompt and give it {{ in_assistant.id }}. {{ access(in_assistant.client) }}</p>
+        <form method="post" action="/patterns/assistant/{{ in_assistant.id }}/end" data-confirm="End {{ what(in_assistant) }}? {{ name }} can then no longer reassess your patterns in it.">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" class="button danger small">End session</button>
+        </form>
+        {% endif %}
+        {% endif %}
+        {% if held and held.trigger != "patterns" %}
+        {% call callout("info", what(held) ~ " is waiting in " ~ client_name(held), "info") %}<p>End it on the <a href="/dreams/{{ held.id }}">Dreams page</a> first: one session at a time.</p>{% endcall %}
+        {% elif not held %}
+        <form method="post" action="/patterns/assistant" class="keep-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <fieldset class="scope">
+            <legend>Where you will run it</legend>
+            {% for value, label in clients.items() %}<label class="check"><input type="radio" name="client" value="{{ value }}"{% if loop.first %} checked{% endif %}>{{ label }}</label>
+            {% endfor %}
+          </fieldset>
+          <p class="hint">It needs an app that can read private pages:</p>
+          {{ access_list() }}
+          <div class="row"><button type="submit" class="button"{{ off("session-why", why_not.session) }}>Open a session</button>{{ why("session-why", why_not.session) }}</div>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+  </ol>
+</section>
+{% endblock %}

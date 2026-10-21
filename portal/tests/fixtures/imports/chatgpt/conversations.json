@@ -1,0 +1,97 @@
+[
+  {
+    "title": "Trip to Lisbon",
+    "create_time": 1760000000.123,
+    "update_time": 1760003600.5,
+    "current_node": "n6b",
+    "conversation_id": "68e1a0b2-aaaa-8000-9000-000000000001",
+    "id": "68e1a0b2-aaaa-8000-9000-000000000001",
+    "is_archived": false,
+    "mapping": {
+      "root": {"id": "root", "message": null, "parent": null, "children": ["sys"]},
+      "sys": {"id": "sys", "parent": "root", "children": ["ctx"], "message": {
+        "id": "sys", "author": {"role": "system", "name": null, "metadata": {}},
+        "create_time": null, "content": {"content_type": "text", "parts": ["You are ChatGPT"]},
+        "metadata": {"is_visually_hidden_from_conversation": true}, "recipient": "all"}},
+      "ctx": {"id": "ctx", "parent": "sys", "children": ["n1"], "message": {
+        "id": "ctx", "author": {"role": "user"}, "create_time": null,
+        "content": {"content_type": "user_editable_context", "user_profile": "CUSTOM INSTRUCTIONS", "user_instructions": "BE BRIEF"},
+        "metadata": {"is_visually_hidden_from_conversation": true}}},
+      "n1": {"id": "n1", "parent": "ctx", "children": ["n2"], "message": {
+        "id": "n1", "author": {"role": "user"}, "create_time": 1760000001.0,
+        "content": {"content_type": "text", "parts": ["Plan 3 days in Lisbon for me. Olá! 🇵🇹"]},
+        "metadata": {"attachments": [{"id": "file-1", "name": "itinerary.pdf", "mime_type": "application/pdf"}]},
+        "recipient": "all"}},
+      "n2": {"id": "n2", "parent": "n1", "children": ["n3"], "message": {
+        "id": "n2", "author": {"role": "assistant"}, "create_time": 1760000002.0,
+        "content": {"content_type": "thoughts", "thoughts": [{"summary": "PRIVATE THOUGHTS", "content": "x"}]},
+        "metadata": {}}},
+      "n3": {"id": "n3", "parent": "n2", "children": ["n4"], "message": {
+        "id": "n3", "author": {"role": "assistant"}, "create_time": 1760000003.0,
+        "content": {"content_type": "reasoning_recap", "content": "Thought for 5 seconds"},
+        "metadata": {}}},
+      "n4": {"id": "n4", "parent": "n3", "children": ["n5a", "n5b"], "message": {
+        "id": "n4", "author": {"role": "assistant"}, "create_time": 1760000004.0,
+        "content": {"content_type": "text", "parts": ["Day 1: Alfama.", "Day 2: Belém."]},
+        "metadata": {}, "recipient": "all"}},
+      "n5a": {"id": "n5a", "parent": "n4", "children": ["n6a"], "message": {
+        "id": "n5a", "author": {"role": "user"}, "create_time": 1760000005.0,
+        "content": {"content_type": "text", "parts": ["ABANDONED EDIT: add a museum"]}, "metadata": {}}},
+      "n6a": {"id": "n6a", "parent": "n5a", "children": [], "message": {
+        "id": "n6a", "author": {"role": "assistant"}, "create_time": 1760000006.0,
+        "content": {"content_type": "text", "parts": ["ABANDONED ANSWER"]}, "metadata": {}}},
+      "n5b": {"id": "n5b", "parent": "n4", "children": ["n5c"], "message": {
+        "id": "n5b", "author": {"role": "user"}, "create_time": 1760000007.0,
+        "content": {"content_type": "multimodal_text", "parts": [
+          {"content_type": "image_asset_pointer", "asset_pointer": "file-service://file-abc", "width": 800, "height": 600},
+          "What is this building?"
+        ]}, "metadata": {}}},
+      "n5c": {"id": "n5c", "parent": "n5b", "children": ["n5d"], "message": {
+        "id": "n5c", "author": {"role": "assistant"}, "create_time": 1760000008.0,
+        "content": {"content_type": "code", "language": "python", "text": "print('azulejo')"},
+        "metadata": {}, "recipient": "python"}},
+      "n5d": {"id": "n5d", "parent": "n5c", "children": ["n5e"], "message": {
+        "id": "n5d", "author": {"role": "tool", "name": "python"}, "create_time": 1760000009.0,
+        "content": {"content_type": "execution_output", "text": "TOOL OUTPUT"}, "metadata": {}}},
+      "n5e": {"id": "n5e", "parent": "n5d", "children": ["n5f"], "message": {
+        "id": "n5e", "author": {"role": "assistant"}, "create_time": 1760000010.0,
+        "content": {"content_type": "text", "parts": ["HIDDEN ASSISTANT TEXT"]},
+        "metadata": {"is_visually_hidden_from_conversation": true}}},
+      "n5f": {"id": "n5f", "parent": "n5e", "children": ["n6b"], "message": {
+        "id": "n5f", "author": {"role": "assistant"}, "create_time": 1760000011.0,
+        "content": {"content_type": "tether_browsing_display", "result": "", "summary": null},
+        "metadata": {}}},
+      "n6b": {"id": "n6b", "parent": "n5f", "children": [], "message": {
+        "id": "n6b", "author": {"role": "assistant"}, "create_time": 1760000012.0,
+        "content": {"content_type": "text", "parts": ["That is the Jerónimos Monastery 🏛️"]},
+        "metadata": {}, "recipient": "all"}}
+    }
+  },
+  {
+    "title": null,
+    "create_time": 1750000000.0,
+    "update_time": 1750000100.0,
+    "id": "68e1a0b2-bbbb-8000-9000-000000000002",
+    "mapping": {
+      "r": {"id": "r", "message": null, "parent": null, "children": ["u"]},
+      "u": {"id": "u", "parent": "r", "children": ["a"], "message": {
+        "id": "u", "author": {"role": "user"}, "create_time": 1750000001.0,
+        "content": {"content_type": "text", "parts": ["What's a good sourdough hydration for a beginner loaf baked in a Dutch oven?"]}, "metadata": {}}},
+      "a": {"id": "a", "parent": "u", "children": [], "message": {
+        "id": "a", "author": {"role": "assistant"}, "create_time": 1750000002.0,
+        "content": {"content_type": "text", "parts": ["Start at 70%."]}, "metadata": {}}}
+    }
+  },
+  {
+    "title": "Broken mapping",
+    "create_time": 1751000000.0,
+    "update_time": 1751000000.0,
+    "id": "68e1a0b2-cccc-8000-9000-000000000003",
+    "current_node": "x",
+    "mapping": {"x": "not a node"}
+  },
+  {
+    "title": "No id",
+    "mapping": {}
+  }
+]

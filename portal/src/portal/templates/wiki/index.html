@@ -1,0 +1,23 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import search_box, type_label %}
+{% block title %}Wiki{% endblock %}
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <h1 class="page-title">{{ wiki_title }} wiki</h1>
+    <p class="page-desc">{{ count }} page{{ "" if count == 1 else "s" }}, written by your assistants. Every change they make is a git commit; here you read.</p>
+  </header>
+  <p><a href="/wiki/merged">Show merged pages</a></p>
+  {{ search_box(types=types) }}
+  <h2 class="section-title">Browse by type</h2>
+  <ul class="type-grid">
+    {% for t in nav %}
+    <li><a href="/wiki/type/{{ t.type | urlq }}" data-type="{{ t.type }}">
+      <span class="type-name">{{ type_label(t.type) }}<span class="count">{{ t.count }}</span></span>
+      {% if t.description %}<span class="type-desc">{{ t.description }}</span>{% endif %}
+    </a></li>
+    {% endfor %}
+  </ul>
+  <div class="hide-lead-title"><article class="prose">{{ body | safe }}</article></div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, callout %}
+{% block title %}API keys{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>API keys</h1>
+  <p class="lead">Keys for the model providers LiteLLM routes to, and for LibreChat's web search. A new key is checked with the provider before it is saved and is never shown again (only a masked hint). Saving or removing a key refreshes the model list and reloads LiteLLM and LibreChat.</p>
+</header>
+
+{% if not can_change %}
+{% call callout("info", icon_name="lock") %}
+<p>To add, replace or remove keys, <a href="/reauth?next=/keys">confirm your password</a> first. You won't be asked again for a few minutes.</p>
+{% endcall %}
+{% endif %}
+
+{% for kind, heading, intro in [
+  ("model", "Model providers", ""),
+  ("search", "Web search", "LibreChat searches the web through the self-hosted SearXNG container, which needs no key. A Tavily key turns web search on in the presets; Jina and Exa are optional extras."),
+] %}
+{% set group = rows | selectattr("provider.kind", "equalto", kind) | list %}
+{% if group %}
+<section class="section" aria-labelledby="group-{{ kind }}">
+<h2 id="group-{{ kind }}">{{ heading }}</h2>
+{% if intro %}<p class="muted">{{ intro }}</p>{% endif %}
+<div class="provider-grid">
+{% for row in group %}
+  {% set p = row.provider %}
+  <section class="panel" aria-labelledby="provider-{{ p.name }}">
+    <div class="panel-head">
+      <h3 id="provider-{{ p.name }}">{{ p.label }}</h3>
+      {% if row.configured %}<span class="pill up">configured</span>{% else %}<span class="pill">not set</span>{% endif %}
+    </div>
+    {% if p.purpose %}<p class="muted">{{ p.purpose }}</p>{% endif %}
+    {% if row.configured %}
+    <dl class="meta">
+      <dt>Key</dt><dd class="masked">{{ row.hint }}</dd>
+      {% if row.added %}<dt>Added</dt><dd>{{ row.added }}</dd>{% endif %}
+      {% if row.tested %}<dt>Last test</dt><dd>{{ row.tested }}<br>{% if row.test_ok %}<span class="ok-text">{{ row.test_detail }}</span>{% else %}<span class="err">{{ row.test_detail }}</span>{% endif %}</dd>{% endif %}
+    </dl>
+    <div class="actions">
+      <form method="post" action="/keys/{{ p.name | urlq }}/test">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="button small">Test</button>
+      </form>
+      {% if can_change %}
+      <form method="post" action="/keys/{{ p.name | urlq }}/remove" data-confirm="Remove the {{ p.label }} key? {{ 'Its models and presets disappear' if p.kind == 'model' else 'Its search features disappear' }} from LibreChat.">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="button small danger">Remove</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if can_change %}
+    <form class="key-form" method="post" action="/keys/{{ p.name | urlq }}/save" autocomplete="off">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="field">
+        <label for="key-{{ p.name }}">{{ "Replace key" if row.configured else "Add key" }}</label>
+        <input id="key-{{ p.name }}" name="key" type="password" autocomplete="new-password" spellcheck="false" required minlength="16" maxlength="512" placeholder="{{ p.key_prefix }}…">
+      </div>
+      <button type="submit" class="button primary">Check with {{ p.label }} and save</button>
+    </form>
+    {% endif %}
+    {% if p.keys_url %}<p class="provider-foot"><a href="{{ p.keys_url }}" rel="noopener noreferrer" target="_blank">Create a key at {{ p.label }}</a></p>{% endif %}
+  </section>
+{% endfor %}
+</div>
+</section>
+{% endif %}
+{% endfor %}
+
+<section class="section" aria-labelledby="models-title">
+  <h2 id="models-title">Model list</h2>
+  <p class="muted">Refreshed after every key change, and by <code>make up</code> and <code>make models</code>.</p>
+  {% if can_change %}
+  <form method="post" action="/keys/apply" class="actions">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="button">{{ icon("refresh") }}Refresh the model list now</button>
+  </form>
+  {% endif %}
+  {% if last %}
+  <p>Last refresh: {% if last.ok %}<span class="pill up">succeeded</span>{% else %}<span class="pill down">failed</span>{% endif %}</p>
+  <pre class="output"><code>{{ last.output }}</code></pre>
+  {% endif %}
+</section>
+{% endblock %}

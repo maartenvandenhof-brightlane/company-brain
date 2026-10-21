@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Error{% endblock %}
+{% block layout %}narrow{% endblock %}
+{% block content %}
+<section class="auth-card" aria-labelledby="error-title">
+  <h1 id="error-title">Can't show this page</h1>
+  <p class="lead err">{{ message }}</p>
+  <div class="actions">
+    {% if session and session.authenticated %}
+    <a class="button primary" href="/wiki">Go to the wiki</a>
+    <a class="button" href="/dashboard">Dashboard</a>
+    {% else %}
+    <a class="button primary" href="/login">Sign in</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

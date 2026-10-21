@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<div class="docs-layout">
+  <nav class="docs-nav" aria-label="Guides">
+    <h2 class="nav-heading">Guides</h2>
+    <ul class="nav-list">
+      {% for p in pages %}
+      <li><a href="/docs/{{ p.slug | urlq }}"{% if p.slug == page.slug %} aria-current="page"{% endif %}><span>{{ p.title }}</span><small>{{ p.repo_path }}</small></a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+  <article class="prose">{{ body | safe }}</article>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+[
+  {
+    "uuid": "0b6c8d7e-1111-4a4a-9c9c-000000000001",
+    "name": "Planning the garden shed 🌱",
+    "created_at": "2026-01-10T09:00:00.000000Z",
+    "updated_at": "2026-01-10T09:30:00.000000Z",
+    "account": {"uuid": "acc-1"},
+    "chat_messages": [
+      {
+        "uuid": "m1",
+        "sender": "human",
+        "created_at": "2026-01-10T09:00:05.000000Z",
+        "text": "stale text field that must not win",
+        "content": [
+          {"type": "text", "text": "Can you help me plan a shed? Budget €800.\nThe wifi password: hunter2hunter2 by the way."}
+        ],
+        "attachments": [
+          {"file_name": "plan.txt", "file_type": "txt", "file_size": 20, "extracted_content": "Width 3m\nDepth 2m"}
+        ],
+        "files": [{"file_name": "photo.jpg"}]
+      },
+      {
+        "uuid": "m2",
+        "sender": "assistant",
+        "created_at": "2026-01-10T09:00:30.000000Z",
+        "text": "",
+        "content": [
+          {"type": "thinking", "thinking": "PRIVATE REASONING THAT MUST NOT APPEAR"},
+          {"type": "text", "text": "# Shed plan\nA 3×2 m shed fits the budget."},
+          {"type": "tool_use", "name": "web_search", "input": {"query": "shed kits"}},
+          {"type": "tool_result", "name": "web_search", "content": [{"type": "text", "text": "RESULT BODY"}]},
+          {"type": "widget_v9", "data": {}},
+          {"type": "text", "text": "```python\nprint('measure twice')\n```"}
+        ],
+        "attachments": [],
+        "files": []
+      },
+      {
+        "uuid": "m3",
+        "sender": "human",
+        "created_at": "2026-01-10T09:10:00.000000Z",
+        "text": "Merci ! 日本語 مرحبا — and what about this?",
+        "content": [],
+        "attachments": [],
+        "files": []
+      },
+      {
+        "uuid": "m4",
+        "sender": "human",
+        "created_at": "2026-01-10T09:11:00.000000Z",
+        "text": "",
+        "content": [{"type": "image", "source": {"type": "base64"}}],
+        "attachments": [],
+        "files": []
+      },
+      {
+        "uuid": "m5",
+        "sender": "system",
+        "created_at": "2026-01-10T09:12:00.000000Z",
+        "text": "system note",
+        "content": []
+      }
+    ]
+  },
+  {
+    "uuid": "0b6c8d7e-2222-4a4a-9c9c-000000000002",
+    "name": "",
+    "created_at": "2025-06-01T08:00:00Z",
+    "updated_at": "2025-06-01T08:20:00Z",
+    "chat_messages": [
+      {"uuid": "a1", "sender": "human", "created_at": "2025-06-01T08:00:00Z", "text": "How do I rotate my backup drives safely every month without losing the history?", "attachments": [], "files": []},
+      {"uuid": "a2", "sender": "assistant", "created_at": "2025-06-01T08:01:00Z", "text": "Use a grandfather-father-son rotation.", "attachments": [], "files": []}
+    ]
+  },
+  {
+    "uuid": "0b6c8d7e-3333-4a4a-9c9c-000000000003",
+    "name": "Broken one",
+    "created_at": "2025-07-01T08:00:00Z",
+    "updated_at": "2025-07-01T08:00:00Z",
+    "chat_messages": "oops"
+  },
+  {
+    "name": "No uuid at all",
+    "chat_messages": []
+  },
+  {
+    "uuid": "0b6c8d7e-4444-4a4a-9c9c-000000000004",
+    "name": "hi",
+    "created_at": "2025-08-01T08:00:00Z",
+    "updated_at": "2025-08-01T08:00:10Z",
+    "chat_messages": [
+      {"uuid": "b1", "sender": "human", "created_at": "2025-08-01T08:00:00Z", "text": "hi", "content": [{"type": "text", "text": "hi"}]},
+      {"uuid": "b2", "sender": "assistant", "created_at": "2025-08-01T08:00:05Z", "text": "Hello! How can I help?", "content": [{"type": "text", "text": "Hello! How can I help?"}]},
+      {
+        "uuid": "b3",
+        "sender": "human",
+        "created_at": "2025-08-01T08:01:00Z",
+        "text": "",
+        "content": [{"type": "text", "text": ""}],
+        "attachments": [
+          {"file_name": "", "file_type": "txt", "file_size": 11, "extracted_content": "PASTED ONE"},
+          {"file_name": "", "file_type": "txt", "file_size": 11, "extracted_content": "PASTED TWO"},
+          {"file_name": "", "file_type": "txt", "file_size": 0, "extracted_content": ""}
+        ],
+        "files": [{"file_name": ""}, {"file_name": ""}]
+      }
+    ]
+  },
+  {
+    "uuid": "0b6c8d7e-5555-4a4a-9c9c-000000000005",
+    "name": "Empty",
+    "created_at": "2025-09-01T08:00:00Z",
+    "updated_at": "2025-09-01T08:00:00Z",
+    "chat_messages": []
+  }
+]

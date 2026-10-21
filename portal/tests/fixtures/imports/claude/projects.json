@@ -1,0 +1,12 @@
+[
+  {
+    "uuid": "p-0001",
+    "name": "Home improvements",
+    "description": "Everything about the house",
+    "is_private": true,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-02T00:00:00Z",
+    "prompt_template": "",
+    "docs": [{"uuid": "d1", "filename": "floorplan.md", "content": "PROJECT DOC NOT IMPORTED"}]
+  }
+]

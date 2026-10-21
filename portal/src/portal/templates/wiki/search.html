@@ -1,0 +1,33 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import search_box, type_chip, type_label, empty %}
+{% block title %}{% if q %}{{ q }} – search{% else %}Search{% endif %}{% endblock %}
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <h1 class="page-title">Search</h1>
+  </header>
+  {{ search_box(q, type, types, autofocus=not q) }}
+  {% if q %}
+  <section id="results" aria-labelledby="results-h">
+    <h2 class="result-count" id="results-h">{{ results | length }} result{{ "" if results | length == 1 else "s" }} for “{{ q }}”{% if type %} in {{ type_label(type) | lower }}{% endif %}</h2>
+    {% if results %}
+    <ol class="results">
+      {% for r in results %}
+      <li class="hit">
+        <p class="result-title"><a href="{{ href(r.id) }}">{{ r.title or r.id }}</a> {% if r.type %}{{ type_chip(r.type) }}{% endif %}{% if r.get("private") %} <span class="pill plain">private</span>{% endif %}</p>
+        <span class="result-id">{{ r.id }}</span>
+        {% if r.snippet_html %}<p class="result-snippet">{{ r.snippet_html | safe }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    {% call empty("No pages match “" ~ q ~ "”") %}
+    <p>Try fewer or other words{% if type %}, or search all types{% endif %}.</p>
+    {% endcall %}
+    {% endif %}
+  </section>
+  {% else %}
+  <p class="muted">Search every page of the wiki, including raw sources and imported chats. Narrow it down with a type.</p>
+  {% endif %}
+</div>
+{% endblock %}

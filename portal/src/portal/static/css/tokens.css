@@ -1,0 +1,252 @@
+/* Second Brain portal: design tokens.
+ *
+ * Everything visual derives from these custom properties. Light values sit on :root, dark
+ * values replace them under prefers-color-scheme, or with data-theme="dark" on <html> (a theme
+ * chosen in the portal; data-theme="light" keeps light). Scripts can read any token with
+ *   getComputedStyle(document.documentElement).getPropertyValue("--type-person")
+ * (the wiki graph uses the --type-* palette; see docs/portal.md, "Design tokens").
+ */
+
+/* Literata (SIL OFL 1.1, fonts/OFL-Literata.txt): a variable text face with optical sizes,
+   made for long reading on screens. Latin subset, roman and italic (the italic is only
+   downloaded by pages that use it). */
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("../fonts/literata-roman-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Literata";
+  font-style: italic;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("../fonts/literata-italic-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- surfaces and ink (light) ---- */
+  --desk: #edf0ed;          /* app background, side columns, top bar */
+  --sheet: #fbfcfa;         /* reading surface and panels */
+  --raised: #ffffff;        /* inputs, menus, drawers */
+  --sunk: #e4e9e5;          /* code, hover wells, table heads */
+  --ink: #1c2427;           /* body text */
+  --ink-2: #445157;         /* secondary text */
+  --ink-3: #5c696f;         /* tertiary text: meta, hints (AA on desk and sheet) */
+  --rule: #d3dad5;          /* hairlines */
+  --rule-strong: #aab5af;   /* dividers that need weight */
+  --line-control: #7e8a85;  /* input and button borders (3:1 on every surface) */
+
+  --accent: #33409b;        /* iron-gall blue-black: links, primary actions, focus */
+  --accent-hover: #262f7a;
+  --accent-ink: #ffffff;    /* text on --accent */
+  --accent-soft: #e5e8f5;   /* selected rows, current step */
+  --focus: #33409b;
+
+  --ok: #1d6936;
+  --ok-soft: #e1f0e5;
+  --warn: #7f5200;
+  --warn-soft: #f8edd5;
+  --danger: #b0261f;
+  --danger-soft: #f9e4e2;
+  --mark: #fbe6a2;          /* search hit highlight */
+
+  /* ---- wiki type palette (categorical) ----
+     One colour per page type from config/wiki-types.yaml, plus unknown/broken/proposal.
+     Light values reach 4.5:1 on --sheet, so white text on them and them on the sheet both
+     pass AA. Mapped to elements with [data-type="…"] (see portal.css). */
+  --type-person: #b8325f;
+  --type-organization: #8c3a99;
+  --type-project: #2b7a3b;
+  --type-concept: #5e49b8;
+  --type-decision: #0a7680;
+  --type-meeting: #1d66b0;
+  --type-howto: #5f7314;
+  --type-owner: #8a4f7d;              /* the owner's own profile */
+  --type-reference: #a34a25;
+  --type-source: #76684f;             /* raw sources, including imported chats */
+  --type-guide: #4a5961;
+  --type-maintenance-report: #5f6488;
+  --type-proposal: #946100;           /* pending proposals (also a page type) */
+  --type-unknown: #5f6b70;            /* any type not listed here */
+  --link-broken: #c0282d;             /* links to pages that do not exist */
+  --tab-ink: #ffffff;                 /* text on a type colour */
+
+  /* ---- idea kinds (home page), borrowed from the type palette so both themes follow ---- */
+  --kind-follow-up: var(--type-decision);
+  --kind-continue: var(--type-meeting);
+  --kind-connect: var(--type-concept);
+  --kind-challenge: var(--type-reference);
+
+  /* ---- type ---- */
+  --font-read: "Literata", "Iowan Old Style", Charter, "Noto Serif", Georgia, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* modular scale, ratio 1.2 around a 16px UI base; reading text is 18px */
+  --fs-xs: 0.8125rem;   /* 13 */
+  --fs-sm: 0.875rem;    /* 14 */
+  --fs-ui: 0.9375rem;   /* 15 */
+  --fs-md: 1rem;        /* 16 */
+  --fs-read: 1.125rem;  /* 18 */
+  --fs-lg: 1.3125rem;   /* 21 */
+  --fs-xl: 1.625rem;    /* 26 */
+  --fs-2xl: 2.125rem;   /* 34 */
+  --fs-3xl: 2.625rem;   /* 42 */
+  --lh-tight: 1.2;
+  --lh-ui: 1.5;
+  --lh-read: 1.7;
+  --measure: 68ch;
+
+  /* ---- space (4px grid) ---- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+
+  /* ---- shape and depth ---- */
+  --r-sm: 4px;     /* chips, inline code */
+  --r-md: 7px;     /* controls */
+  --r-lg: 12px;    /* panels, drop zone */
+  --shadow-pop: 0 1px 2px rgb(20 30 34 / 0.08), 0 8px 28px rgb(20 30 34 / 0.16);
+  --shadow-drawer: 0 0 0 1px rgb(20 30 34 / 0.06), 12px 0 40px rgb(20 30 34 / 0.2);
+  --scrim: rgb(20 28 31 / 0.42);
+
+  /* ---- layout ---- */
+  --topbar-h: 3.5rem;
+  --side-w: 16rem;
+  --info-w: 18.5rem;
+  --content-max: 64rem;
+  --hit: 2.5rem;   /* minimum control height; 2.75rem on touch screens */
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+}
+
+@media (pointer: coarse) {
+  :root { --hit: 2.75rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk: #151b1d;
+    --sheet: #1b2326;
+    --raised: #222b2f;
+    --sunk: #11171a;
+    --ink: #e2e8e6;
+    --ink-2: #b5c0c1;
+    --ink-3: #93a1a4;
+    --rule: #2c373b;
+    --rule-strong: #4a585d;
+    --line-control: #6f7e84;
+
+    --accent: #a9b5ff;
+    --accent-hover: #c5ceff;
+    --accent-ink: #141a3d;
+    --accent-soft: #283056;
+    --focus: #a9b5ff;
+
+    --ok: #82d39c;
+    --ok-soft: #1b3325;
+    --warn: #efc16c;
+    --warn-soft: #382c14;
+    --danger: #ff9d95;
+    --danger-soft: #3d1f1d;
+    --mark: #5b4a06;
+
+    --type-person: #f28cb0;
+    --type-organization: #d996e4;
+    --type-project: #80d08e;
+    --type-concept: #b6a4f5;
+    --type-decision: #5fcfd6;
+    --type-meeting: #84b7f2;
+    --type-howto: #bfd26a;
+    --type-owner: #e3a6d6;
+    --type-reference: #f0a07e;
+    --type-source: #c9b996;
+    --type-guide: #aab9c1;
+    --type-maintenance-report: #b3b6d3;
+    --type-proposal: #edbb57;
+    --type-unknown: #95a1a5;
+    --link-broken: #ff8a80;
+    --tab-ink: #151b1d;
+
+    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px rgb(0 0 0 / 0.45);
+    --shadow-drawer: 0 0 0 1px rgb(255 255 255 / 0.04), 12px 0 40px rgb(0 0 0 / 0.5);
+    --scrim: rgb(5 8 9 / 0.6);
+  }
+}
+
+/* A theme chosen in the portal ("Switch theme" in the command palette, kept in localStorage and
+   set by js/theme-init.js before the first paint) overrides the device's setting. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --desk: #151b1d;
+  --sheet: #1b2326;
+  --raised: #222b2f;
+  --sunk: #11171a;
+  --ink: #e2e8e6;
+  --ink-2: #b5c0c1;
+  --ink-3: #93a1a4;
+  --rule: #2c373b;
+  --rule-strong: #4a585d;
+  --line-control: #6f7e84;
+
+  --accent: #a9b5ff;
+  --accent-hover: #c5ceff;
+  --accent-ink: #141a3d;
+  --accent-soft: #283056;
+  --focus: #a9b5ff;
+
+  --ok: #82d39c;
+  --ok-soft: #1b3325;
+  --warn: #efc16c;
+  --warn-soft: #382c14;
+  --danger: #ff9d95;
+  --danger-soft: #3d1f1d;
+  --mark: #5b4a06;
+
+  --type-person: #f28cb0;
+  --type-organization: #d996e4;
+  --type-project: #80d08e;
+  --type-concept: #b6a4f5;
+  --type-decision: #5fcfd6;
+  --type-meeting: #84b7f2;
+  --type-howto: #bfd26a;
+  --type-owner: #e3a6d6;
+  --type-reference: #f0a07e;
+  --type-source: #c9b996;
+  --type-guide: #aab9c1;
+  --type-maintenance-report: #b3b6d3;
+  --type-proposal: #edbb57;
+  --type-unknown: #95a1a5;
+  --link-broken: #ff8a80;
+  --tab-ink: #151b1d;
+
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px rgb(0 0 0 / 0.45);
+  --shadow-drawer: 0 0 0 1px rgb(255 255 255 / 0.04), 12px 0 40px rgb(0 0 0 / 0.5);
+  --scrim: rgb(5 8 9 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+  }
+}

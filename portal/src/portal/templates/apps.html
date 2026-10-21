@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, callout, empty %}
+{% block title %}Connected apps{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Connected apps</h1>
+  <p class="lead">The AI apps connected to your wiki (Claude, ChatGPT, Le Chat, …) and whether they see private pages. Private pages: personal life, relationships, feelings. The app's provider sees what it reads.</p>
+</header>
+
+{% if not can_change %}
+{% call callout("info", icon_name="lock") %}
+<p>To change an app's access, <a href="/reauth?next=/apps">confirm your password</a> first. You won't be asked again for a few minutes.</p>
+{% endcall %}
+{% endif %}
+
+{% if error %}
+{% call callout("bad", title="The wiki could not be reached") %}<p>{{ error }}</p>{% endcall %}
+{% elif not apps %}
+{% call empty("No app has connected yet") %}<p>Add the wiki as a connector in Claude, ChatGPT or Le Chat; it shows here once it has connected.</p>{% endcall %}
+{% else %}
+<section class="section" aria-labelledby="apps-title">
+  <h2 id="apps-title" class="vh">Apps</h2>
+  <p class="muted">A change applies from the app's next request; it does not need to reconnect. <em>As consented</em> follows the box you ticked when the app connected.</p>
+  <div class="table-wrap"><table class="data reflow">
+    <thead><tr>
+      <th scope="col">App</th>
+      <th scope="col">Last used</th>
+      <th scope="col" class="num">Grants</th>
+      <th scope="col">Private pages</th>
+      {% if can_change %}<th scope="col">Change</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for a in apps %}
+    <tr>
+      <td class="cell-main"><code>{{ a.label }}</code><span class="cell-sub">{{ a.kind }}, connected {{ a.created }}</span></td>
+      <td data-label="Last used">{{ a.last_used }}</td>
+      <td class="num" data-label="Grants">{{ a.active_grants }}</td>
+      <td data-label="Private pages">
+        {% if a.private %}<span class="pill accent">sees them</span>{% else %}<span class="pill">hidden</span>{% endif %}
+        <span class="cell-sub">{% if a.toggle == "on" %}turned on here{% elif a.toggle == "off" %}turned off here{% else %}as consented ({{ "ticked" if a.consented else "not ticked" }}){% endif %}</span>
+      </td>
+      {% if can_change %}
+      <td data-label="Change">
+        <form method="post" action="/apps/private" class="actions">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="label" value="{{ a.label }}">
+          {% for value, text in [("on", "On"), ("off", "Off"), ("default", "As consented")] %}
+          <button type="submit" name="access" value="{{ value }}" class="button small{{ ' primary' if a.toggle == value }}" aria-pressed="{{ 'true' if a.toggle == value else 'false' }}">{{ text }}</button>
+          {% endfor %}
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endif %}
+
+{% if internal %}
+<section class="section" aria-labelledby="internal-title">
+  <h2 id="internal-title">LibreChat</h2>
+  <p class="muted">LibreChat connects over the internal network and passes what it reads to the model of each chat. It
+    {% if internal.private %}<span class="pill accent">sees them</span>{% else %}<span class="pill">hidden</span>{% endif %}
+    ({% if internal.toggle == "on" %}turned on here{% elif internal.toggle == "off" %}turned off here{% else %}as <code>INTERNAL_SCOPES</code> in <code>.env</code> says{% endif %}).</p>
+  {% if can_change %}
+  <form method="post" action="/apps/private" class="actions">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="label" value="{{ internal.label }}">
+    {% for value, text in [("on", "On"), ("off", "Off"), ("default", "As INTERNAL_SCOPES")] %}
+    <button type="submit" name="access" value="{{ value }}" class="button small{{ ' primary' if internal.toggle == value }}" aria-pressed="{{ 'true' if internal.toggle == value else 'false' }}">{{ text }}</button>
+    {% endfor %}
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

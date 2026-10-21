@@ -1,0 +1,48 @@
+{% extends "wiki/base.html" %}
+{% from "macros.html" import type_chip, empty, review_button %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <h1 class="page-title">{{ heading }}</h1>
+    {% if review %}<p class="page-desc">Pages whose status is <code>draft</code>, most of them written by an assistant while processing imported chats, without you reading along. Check each against the sources it cites, then <em>Mark reviewed</em> (or ask an assistant to correct it first).</p>
+    <p class="page-note">Unlike <a href="/wiki/proposals">proposals</a>, drafts are already in the wiki: assistants read and cite them while you have not checked them yet.</p>{% endif %}
+    <ul class="page-facts"><li>{{ docs | length }} page{{ "" if docs | length == 1 else "s" }}</li></ul>
+  </header>
+  {% if docs %}
+  <ul class="doc-list">
+    {% for d in docs %}
+    <li>
+      <a class="doc-title" href="{{ href(d.id) }}">{{ d.title or d.id }}</a>
+      {% if d.description %}<p class="doc-desc">{{ d.description }}</p>{% endif %}
+      <div class="doc-meta">
+        {{ type_chip(d.type, "/wiki/type/" ~ (d.type | urlq)) }}
+        {% if d.status and d.status != "stable" %}<span class="pill plain">{{ d.status }}</span>{% endif %}
+        {% if d.get("private") %}<span class="pill plain">private</span>{% endif %}
+        {% if d.updated %}<span>Updated {{ (d.updated | string)[:10] }}</span>{% endif %}
+      </div>
+      {% if review %}{{ review_button(d.id, "/wiki/drafts", csrf) }}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% call empty("Nothing to review" if review else "No pages with this tag") %}
+  <p>{% if review %}Pages with status <code>draft</code> show up here until they are marked stable.{% else %}No page carries the tag <code>{{ tag }}</code>.{% endif %}</p>
+  {% endcall %}
+  {% endif %}
+  {% if review and unmarked %}
+  <h2 id="unmarked">Stable, not marked reviewed yet</h2>
+  <p class="page-desc">These pages are stable but still carry the <code>from-chat-import</code> tag, so they have not been through <em>Mark reviewed</em>. Dreams leave them alone until you mark them.</p>
+  <ul class="doc-list">
+    {% for d in unmarked %}
+    <li>
+      <a class="doc-title" href="{{ href(d.id) }}">{{ d.title or d.id }}</a>
+      {% if d.description %}<p class="doc-desc">{{ d.description }}</p>{% endif %}
+      <div class="doc-meta">{{ type_chip(d.type, "/wiki/type/" ~ (d.type | urlq)) }}{% if d.updated %}<span>Updated {{ (d.updated | string)[:10] }}</span>{% endif %}</div>
+      {{ review_button(d.id, "/wiki/drafts#unmarked", csrf) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

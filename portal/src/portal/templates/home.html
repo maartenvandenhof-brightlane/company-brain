@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, callout, empty %}
+{% from "idea_card.html" import idea_card with context %}
+{% block title %}Home{% endblock %}
+{% block body_class %} page-home{% endblock %}
+
+{% block content %}
+<form class="ask" method="get" action="/ask" target="_blank" rel="noopener noreferrer">
+  <label class="ask-label" for="ask-q">Ask your second brain</label>
+  <textarea id="ask-q" name="q" rows="2" maxlength="4000" placeholder="What did I decide about…" required></textarea>
+  <div class="ask-foot">
+    <p class="hint">Opens a new chat in LibreChat{% if preset_label %} with <strong>{{ preset_label }}</strong>{% endif %}, in a new tab.</p>
+    <button type="submit" class="button primary">Ask in LibreChat{{ icon("external") }}</button>
+  </div>
+</form>
+
+{% if problems %}
+{% call callout("warn", "The wiki is not answering", "alert") %}
+<p>Could not load {{ problems | join(", ") }}. Ideas below are from the portal's own store.</p>
+{% endcall %}
+{% endif %}
+
+<div class="home-grid">
+  <section class="ideas" id="ideas" aria-labelledby="ideas-title">
+    <div class="section-head">
+      <h2 id="ideas-title">Ideas</h2>
+      <a class="button small" href="/ideas">All ideas{% if more_ideas %} ({{ more_ideas }} more){% endif %}</a>
+    </div>
+    <p class="hint ideas-when">The best open ideas. Goals, your answers, the taste note and the runs are on the <a href="/ideas">Ideas</a> tab.</p>
+
+    {% if cards %}
+    <div class="idea-list">
+      {% for c in cards %}{{ idea_card(c, "/home") }}{% endfor %}
+    </div>
+    {% else %}
+    {% call empty("No ideas right now") %}
+    <p>Ideas come from what you file in the wiki, and follow every dream. <a href="/ideas">Ideas</a> has <strong>Ideate</strong>, which looks through the wiki now.</p>
+    {% endcall %}
+    {% endif %}
+  </section>
+
+  <aside class="home-side" aria-label="Your wiki">
+    <section id="follow-ups" aria-labelledby="follow-title">
+      <h2 id="follow-title" class="side-title">Follow-ups</h2>
+      {% if follow_ups %}
+      <div class="idea-list">
+        {% for c in follow_ups %}{{ idea_card(c, "/home", compact=True) }}{% endfor %}
+      </div>
+      {% else %}
+      <p class="none">Nothing to follow up.</p>
+      {% endif %}
+    </section>
+
+    <section aria-labelledby="review-title">
+      <h2 id="review-title" class="side-title">To review</h2>
+      {% if review is none %}
+      <p class="none">Not available right now.</p>
+      {% elif review.unprocessed or review.refile or review.drafts or review.proposals %}
+      <ul class="tally">
+        {% if review.unprocessed %}<li><a href="/import"><span class="num">{{ review.unprocessed }}</span> imported {{ "chat" if review.unprocessed == 1 else "chats" }} to process</a></li>{% endif %}
+        {% if review.refile %}<li><a href="/import"><span class="num">{{ review.refile }}</span> filed before the current rules</a></li>{% endif %}
+        {% if review.drafts %}<li><a href="/wiki/drafts"><span class="num">{{ review.drafts }}</span> {{ "draft" if review.drafts == 1 else "drafts" }} to review</a></li>{% endif %}
+        {% if review.proposals %}<li><a href="/wiki/proposals"><span class="num">{{ review.proposals }}</span> {{ "proposal" if review.proposals == 1 else "proposals" }}</a></li>{% endif %}
+      </ul>
+      {% else %}
+      <p class="none">Nothing waits for review.</p>
+      {% endif %}
+    </section>
+
+    <section aria-labelledby="recent-title">
+      <h2 id="recent-title" class="side-title">Recently in the wiki</h2>
+      {% if changes %}
+      <ol class="recent-list">
+        {% for c in changes %}
+        <li data-type="{{ c.type }}">
+          <span class="swatch" aria-hidden="true"></span>
+          <div>
+            {% if c.href %}<a href="{{ c.href }}">{{ c.summary }}</a>{% else %}<span>{{ c.summary }}</span>{% endif %}
+            <small>{{ c.when }}{% if c.more %}, and {{ c.more }} more {{ "page" if c.more == 1 else "pages" }}{% endif %}</small>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      <p class="more"><a href="/wiki/recent">All changes</a></p>
+      {% else %}
+      <p class="none">No changes yet.</p>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}
