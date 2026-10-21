@@ -7,7 +7,7 @@ chat apps they already have (claude.ai, ChatGPT, Gemini). Forked from the owner'
 - **One wiki.** Markdown + YAML frontmatter in git
   ([Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format)), in a host
   folder you can also edit in Obsidian or VS Code: search picks up your edits within seconds.
-- **Two ways in, chosen in a web wizard.** `mcp`: a custom MCP connector (OAuth 2.1) through
+- **Several ways in, chosen in a web wizard.** `mcp`: a custom MCP connector (OAuth 2.1) through
   Tailscale Funnel. `gdrive`: the wiki exported to Google Docs plus an inbox for notes, for chat apps
   that block custom connectors. Or `both`. Or `folder`: the same for Gemini, by hand, where Google
   Cloud is switched off.
@@ -32,6 +32,19 @@ Then open **http://localhost:8080/setup** (the brain logs this URL while it wait
 The portal is at **http://localhost:3090**. Nothing needs a terminal prompt or a `.env`; copy
 `.env.example` to `.env` only to move ports or folders or to prefill the wizard. `make up` passes
 your user id so the files in `./data` stay yours (`docker compose up -d` assumes uid 1000).
+
+**Accounts.** Each brain has exactly one account: user name `owner` and the admin password from
+step 1. It signs in to the settings page, the portal and the MCP connector; there is no sign-up
+and no way to add users. Every employee runs their own brain on their own machine, with their own
+password, wiki and (in `folder` mode) `Brain` folder in their own Google Drive. To try a second
+brain on one machine, give it its own data folder and ports, e.g.
+`BRAIN_DATA_DIR=./data-test BRAIN_PORT=8086 PORTAL_PORT=3096 docker compose -p brain-test up -d`.
+
+**On a server over SSH.** The wizard and the portal listen on the server's localhost only. Reach
+them from your own computer with a tunnel, then open the same localhost links there:
+`ssh -L 8080:localhost:8080 -L 3090:localhost:3090 <user>@<server>`. If 8080 or 3090 is already
+taken on the server, set `BRAIN_PORT` / `PORTAL_PORT` in `.env` and tunnel those ports instead
+(with Google sign-in, the redirect URI then uses the new `BRAIN_PORT`).
 
 Which mode:
 

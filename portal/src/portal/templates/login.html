@@ -6,7 +6,7 @@
 <p class="auth-brand"><span class="brand">{{ brand_mark() }}<span>{{ title }}</span></span></p>
 <section class="auth-card" aria-labelledby="login-title">
   <h1 id="login-title">Sign in</h1>
-  <p class="lead">Use your owner account: the same login as your AI app connectors.</p>
+  <p class="lead">Each brain has one account: user name <code>owner</code> and the admin password chosen in the setup wizard. New accounts can't be created here; every employee runs their own brain.</p>
   {% if error %}<div class="callout bad" role="alert">{{ icon("alert") }}<p class="err">{{ error }}</p></div>{% endif %}
   <form method="post" action="/login">
     <input type="hidden" name="csrf" value="{{ login_csrf }}">

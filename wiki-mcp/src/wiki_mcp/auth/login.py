@@ -215,6 +215,8 @@ class LoginHandler:
 <h1>Connect to {escape(self.config.wiki_title)}</h1>
 <p><strong>{escape(client_name)}</strong> wants access to your wiki.<br>
 After sign-in you will be sent to <code>{escape(parts.netloc)}</code>.</p>
+<p>Each brain has one account: user name <code>owner</code> and the admin password chosen in the
+setup wizard. New accounts can't be created here; every employee runs their own brain.</p>
 {err}
 <form method="post" action="/login">
 <input type="hidden" name="request" value="{escape(pending.id)}">

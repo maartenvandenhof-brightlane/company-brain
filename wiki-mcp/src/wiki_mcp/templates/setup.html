@@ -59,6 +59,8 @@
 {% elif view == "login" %}
   <h1>{{ title }} settings</h1>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <p class="muted">Sign in with the admin password chosen when this brain was set up (it is also the
+    <code>owner</code> login of the portal). Each brain has this one account; every employee runs their own brain.</p>
   <form method="post" action="/setup/login">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label for="password">Admin password</label>
